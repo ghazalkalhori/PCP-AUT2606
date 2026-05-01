@@ -1,5 +1,6 @@
 import { Search, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/StatusBadge.jsx';
 import { getMatches } from '../services/matchesService.js';
 
@@ -67,9 +68,10 @@ function ScoreCell({ score }) {
 }
 
 /** Green generate button with sparkle icon */
-function GenerateButton() {
+function GenerateButton({ onClick }) {
   return (
     <button
+      onClick={onClick}
       className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
     >
       <Sparkles size={13} />
@@ -81,6 +83,12 @@ function GenerateButton() {
 const columns = ['MATCH', 'COMPETITION', 'DATE', 'STATUS', 'SCORE', 'ACTIONS'];
 
 function Matches() {
+  const navigate = useNavigate();
+
+  const handleGenerateClick = (match) => {
+    navigate(`/generate/${match.id}`, { state: { match } });
+  };
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -157,7 +165,9 @@ function Matches() {
 
                 {/* ACTIONS */}
                 <td className="px-4 py-4">
-                  {match.status !== 'live' && <GenerateButton />}
+                  {match.status !== 'live' && (
+                    <GenerateButton onClick={() => handleGenerateClick(match)} />
+                  )}
                 </td>
               </tr>
             ))}
@@ -192,7 +202,7 @@ function Matches() {
             </div>
             {match.status !== 'live' && (
               <div className="pt-2 border-t border-gray-50">
-                <GenerateButton />
+                <GenerateButton onClick={() => handleGenerateClick(match)} />
               </div>
             )}
           </div>

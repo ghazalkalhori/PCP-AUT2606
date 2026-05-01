@@ -1,5 +1,6 @@
 import { Users, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useNavigate } from 'react-router-dom';
 import { getCompetitions } from '../services/competitionsService.js';
 
 const competitions = getCompetitions();
@@ -65,9 +66,10 @@ function ActiveBadge() {
 }
 
 /** Green Summary button with sparkle icon */
-function SummaryButton() {
+function SummaryButton({ onClick }) {
   return (
     <button
+      onClick={onClick}
       className="inline-flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
     >
       <Sparkles size={13} />
@@ -79,6 +81,12 @@ function SummaryButton() {
 const columns = ['COMPETITION', 'SEASON', 'PROGRESS', 'TEAMS', 'STATUS', 'ACTIONS'];
 
 function Competitions() {
+  const navigate = useNavigate();
+
+  const handleSummaryClick = (competition) => {
+    navigate(`/generate/competition/${competition.id}`, { state: { competition } });
+  };
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -144,7 +152,7 @@ function Competitions() {
 
                 {/* ACTIONS */}
                 <td className="px-4 py-4">
-                  <SummaryButton />
+                  <SummaryButton onClick={() => handleSummaryClick(comp)} />
                 </td>
               </tr>
             ))}
@@ -172,7 +180,7 @@ function Competitions() {
               </div>
             </div>
             <div className="pt-2 border-t border-gray-50">
-              <SummaryButton />
+              <SummaryButton onClick={() => handleSummaryClick(comp)} />
             </div>
           </div>
         ))}

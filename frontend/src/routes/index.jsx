@@ -1,9 +1,13 @@
 import React from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
+import ProtectedRoute from '../components/ProtectedRoute.jsx';
+import Login from '../pages/Login.jsx';
 import { Calendar, Briefcase, Trophy, FileText, ArrowRight } from 'lucide-react';
 import Matches from '../pages/Matches.jsx';
 import Competitions from '../pages/Competitions.jsx';
+import GenerateReport from '../pages/GenerateReport.jsx';
+import GenerateCompetitionReport from '../pages/GenerateCompetitionReport.jsx';
 import { clsx } from 'clsx';
 
 const StatCard = ({ icon: Icon, value, label }) => (
@@ -149,14 +153,19 @@ const Placeholder = ({ title }) => (
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<MainLayout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="matches" element={<Matches />} />
-        <Route path="competitions" element={<Competitions />} />
-        <Route path="jobs" element={<Placeholder title="Jobs" />} />
-        <Route path="generate" element={<Placeholder title="Generate" />} />
-        <Route path="content" element={<Placeholder title="Content" />} />
+      <Route path="/login" element={<Login />} />
+      <Route element={<ProtectedRoute />}>
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="matches" element={<Matches />} />
+          <Route path="competitions" element={<Competitions />} />
+          <Route path="jobs" element={<Placeholder title="Jobs" />} />
+          <Route path="generate" element={<Placeholder title="Generate" />} />
+          <Route path="generate/:matchId" element={<GenerateReport />} />
+          <Route path="generate/competition/:competitionId" element={<GenerateCompetitionReport />} />
+          <Route path="content" element={<Placeholder title="Content" />} />
+        </Route>
       </Route>
     </Routes>
   );
