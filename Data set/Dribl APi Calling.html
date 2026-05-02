@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h2>Dribl API Test</h2>
+  <button onclick="getData()">Get 1 Fixture</button>
+  <pre id="output"></pre>
+
+  <script>
+    async function getData() {
+      const API_TOKEN = "********************";
+
+      //const url = "https://open.dribl.com/api/fixtures?start_date=2026-01-01T00:00:00&end_date=2026-04-01T23:59:59&team_name=FWW";
+
+      const url = "https://open.dribl.com/api/fixtures/MNGJYyGEpm/statistics";
+
+      //const url = "https://open.dribl.com/api/team-members?team=xNx98E08Kk&fixture=MNGJYyGEpm";
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${API_TOKEN}`,
+          "Accept": "application/json"
+        }
+      });
+
+      const data = await response.json();
+
+      document.getElementById("output").textContent =
+        JSON.stringify(data.data && data.data.length > 0 ? data.data[0] : data, null, 2);
+    }
+  </script>
+</body>
+</html>
