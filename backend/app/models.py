@@ -23,3 +23,20 @@ class Report(Base):
 
     # Workflow status (draft, approved, etc.)
     status = Column(String, default="draft")
+
+
+# This class = users table
+class User(Base):
+    __tablename__ = "users"
+
+    # Unique user ID
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Employee username
+    username = Column(String, unique=True, index=True)
+
+    # Hashed password, never store plain password
+    password_hash = Column(String)
+
+    # Simple role, example: admin/editor
+    role = Column(String, default="admin")
