@@ -5,7 +5,7 @@
 .vscode/
 .idea/
 
-# Environment
+# Environment variables (DO NOT commit secrets)
 .env
 .env.*
 !.env.example
@@ -14,15 +14,14 @@
 __pycache__/
 *.py[cod]
 *.sqlite3
+*.db
 .venv/
 venv/
+env/
+ENV/
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Django
-staticfiles/
-media/
 
 # Node
 node_modules/
