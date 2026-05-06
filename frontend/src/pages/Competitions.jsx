@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { Users, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useNavigate } from 'react-router-dom';
+import GenerateReportModal from '../components/modals/GenerateReportModal.jsx';
 import { getCompetitions } from '../services/competitionsService.js';
 
 const competitions = getCompetitions();
@@ -81,10 +82,12 @@ function SummaryButton({ onClick }) {
 const columns = ['COMPETITION', 'SEASON', 'PROGRESS', 'TEAMS', 'STATUS', 'ACTIONS'];
 
 function Competitions() {
-  const navigate = useNavigate();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedComp, setSelectedComp] = useState(null);
 
   const handleSummaryClick = (competition) => {
-    navigate(`/generate/competition/${competition.id}`, { state: { competition } });
+    setSelectedComp(competition);
+    setModalOpen(true);
   };
 
   return (
@@ -185,6 +188,13 @@ function Competitions() {
           </div>
         ))}
       </div>
+
+      <GenerateReportModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        type="competition"
+        data={selectedComp}
+      />
     </div>
   );
 }

@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { Search, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useNavigate } from 'react-router-dom';
 import StatusBadge from '../components/StatusBadge.jsx';
+import GenerateReportModal from '../components/modals/GenerateReportModal.jsx';
 import { getMatches } from '../services/matchesService.js';
 
 const matches = getMatches();
@@ -83,10 +84,12 @@ function GenerateButton({ onClick }) {
 const columns = ['MATCH', 'COMPETITION', 'DATE', 'STATUS', 'SCORE', 'ACTIONS'];
 
 function Matches() {
-  const navigate = useNavigate();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
 
   const handleGenerateClick = (match) => {
-    navigate(`/generate/${match.id}`, { state: { match } });
+    setSelectedMatch(match);
+    setModalOpen(true);
   };
 
   return (
@@ -208,6 +211,13 @@ function Matches() {
           </div>
         ))}
       </div>
+
+      <GenerateReportModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        type="match"
+        data={selectedMatch}
+      />
     </div>
   );
 }
