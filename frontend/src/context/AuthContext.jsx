@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useMemo, useRef, useState } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -77,7 +77,7 @@ function clearAuthCookies() {
   });
 }
 
-async function bestEffortBackendLogout() {
+async function bestEffortBackendLogout(signal) {
   const candidates = ['/auth/logout', '/auth/logout/'];
 
   await Promise.allSettled(
@@ -85,6 +85,7 @@ async function bestEffortBackendLogout() {
       fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api'}${path}`, {
         method: 'POST',
         credentials: 'include',
+        signal,
         headers: { 'Content-Type': 'application/json' },
       })
     )
@@ -93,31 +94,22 @@ async function bestEffortBackendLogout() {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => loadStoredUser());
-
-  useEffect(() => {
-    // Defensive re-hydration: if something resets in-memory state but storage still
-    // has a valid session, restore it to avoid surprise redirects.
-    if (user) return;
-    const stored = loadStoredUser();
-    if (stored) setUser(stored);
-  }, [user]);
-
-  useEffect(() => {
-    const onStorage = (event) => {
-      if (event.key !== AUTH_USER_KEY) return;
-      const stored = loadStoredUser();
-      setUser(stored);
-    };
-
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
-  }, []);
+  const pendingLogoutControllerRef = useRef(null);
 
   const value = useMemo(
     () => ({
       user,
       isAuthenticated: Boolean(user),
       login: (nextUser) => {
+        // If a previous logout request is still in-flight, abort it so it can't
+        // invalidate the next session (e.g. by clearing an auth cookie later).
+        try {
+          pendingLogoutControllerRef.current?.abort();
+        } catch {
+          // ignore
+        }
+        pendingLogoutControllerRef.current = null;
+
         storeUser(nextUser);
         setUser(nextUser);
       },
@@ -130,9 +122,13 @@ export function AuthProvider({ children }) {
 
         // If a backend logout exists, call it, but never block sign-out on it.
         try {
-          await bestEffortBackendLogout();
+          const controller = new AbortController();
+          pendingLogoutControllerRef.current = controller;
+          await bestEffortBackendLogout(controller.signal);
         } catch {
           // ignore
+        } finally {
+          pendingLogoutControllerRef.current = null;
         }
       },
     }),
