@@ -6,6 +6,7 @@ import Login from '../pages/Login.jsx';
 import { Calendar, Briefcase, Trophy, FileText, ArrowRight } from 'lucide-react';
 import Matches from '../pages/Matches.jsx';
 import Competitions from '../pages/Competitions.jsx';
+import Jobs from '../pages/Jobs.jsx';
 import { clsx } from 'clsx';
 
 const StatCard = ({ icon: Icon, value, label }) => (
@@ -158,9 +159,7 @@ const AppRoutes = () => {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="matches" element={<Matches />} />
           <Route path="competitions" element={<Competitions />} />
-          <Route path="jobs" element={<Placeholder title="Jobs" />} />
-          <Route path="generate" element={<Placeholder title="Generate" />} />
-          <Route path="content" element={<Placeholder title="Content" />} />
+          <Route path="jobs" element={<Jobs />} />
         </Route>
       </Route>
     </Routes>

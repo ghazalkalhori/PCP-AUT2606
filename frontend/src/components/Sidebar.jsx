@@ -1,18 +1,28 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard' },
   { name: 'Matches', path: '/matches' },
   { name: 'Competitions', path: '/competitions' },
   { name: 'Jobs', path: '/jobs' },
-  { name: 'Generate', path: '/generate' },
-  { name: 'Content', path: '/content' },
 ];
 
 const Sidebar = ({ isOpen }) => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } finally {
+      navigate('/login', { replace: true });
+    }
+  }
+
   return (
     <aside className={clsx(
       "fixed inset-y-0 left-0 z-30 w-[210px] bg-[#0f1117] flex flex-col justify-between py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
@@ -57,7 +67,13 @@ const Sidebar = ({ isOpen }) => {
           <p className="text-white font-medium text-sm leading-tight truncate">Chris</p>
           <p className="text-gray-400 text-xs truncate">Administrator</p>
         </div>
-        <button className="text-gray-400 hover:text-white transition-colors">
+        <button
+          type="button"
+          onClick={handleLogout}
+          aria-label="Sign out"
+          title="Sign out"
+          className="text-gray-400 hover:text-white transition-colors"
+        >
           <LogOut size={16} />
         </button>
       </div>
