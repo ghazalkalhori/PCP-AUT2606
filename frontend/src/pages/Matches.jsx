@@ -19,6 +19,97 @@ function TeamBadge({ team }) {
   );
 }
 
+function formatMatch(match) {
+  return {
+    id: match.id,
+    date: match.date,
+    time: match.time,
+    competition: match.competition,
+    league: match.league,
+    ground: match.ground,
+    status: match.status,
+
+    homeTeam: makeTeamInfo(
+      match.home_team,
+      'Home Team',
+      '#10b981'
+    ),
+
+    awayTeam: makeTeamInfo(
+      match.away_team,
+      'Away Team',
+      '#6366f1'
+    ),
+
+    score: null,
+    raw: match,
+  };
+}
+
+const API_TOKEN = import.meta.env.VITE_DRIBL_API_TOKEN;
+
+export async function getMatchList() {
+  const url =
+    'https://open.dribl.com/api/fixtures?start_date=2026-04-07T00:00:00&end_date=2026-05-07T23:59:59&team_name=DFA';
+
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.data || result.data.length === 0) {
+      return [];
+    }
+
+    const matches = result.data.map((match) => {
+      const a = match.attributes;
+
+      return {
+        id: match.id,
+        date: a.local_start_date,
+        time: a.local_start_time,
+        competition: a.competition_name,
+        league: a.league_name,
+        home_team: a.home_team,
+        away_team: a.away_team,
+        ground: a.ground_name,
+        status: a.event_status,
+      };
+    });
+
+    return matches;
+  } catch (error) {
+    console.error('Failed to fetch match list:', error);
+    return [];
+  }
+}
+
+function makeTeamInfo(teamName, fallback, color) {
+  return {
+    name: teamName || fallback,
+    abbreviation: teamName
+      ? teamName
+          .split(' ')
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((word) => word[0])
+          .join('')
+          .toUpperCase()
+      : fallback.slice(0, 3).toUpperCase(),
+    color,
+  };
+}
+
 /** Home vs Away cell with avatars + names */
 function MatchCell({ home, away }) {
   return (

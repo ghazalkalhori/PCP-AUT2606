@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useNavigate } from 'react-router-dom';
 
 const labelClassName = 'text-xs text-gray-400 uppercase tracking-wide mb-1';
 
@@ -30,6 +31,7 @@ function OptionButton({ selected, label, onClick, className }) {
 }
 
 function GenerateReportModal({ isOpen, onClose, type, data }) {
+  const navigate = useNavigate();
   const [contentType, setContentType] = useState(
     type === 'competition' ? 'Round Summary' : 'Pre Match'
   );
@@ -67,6 +69,9 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
 
   const handleGenerate = () => {
     // TODO: connect to FastAPI backend + LLM
+   onClose();
+    navigate('/report/result', { state: { data, contentType, writingStyle, type } });
+
     console.log({ data, contentType, writingStyle });
   };
 

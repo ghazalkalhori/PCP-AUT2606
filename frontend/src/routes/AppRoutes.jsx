@@ -11,6 +11,7 @@ import Competitions from '../pages/Competitions.jsx';
 import Jobs from '../pages/Jobs.jsx';
 import Users from '../pages/Users.jsx';
 import Settings from '../pages/Settings.jsx';
+import GeneratedReport from '../pages/GeneratedReport.jsx';
 import NotFound from '../pages/NotFound.jsx';
 
 function AppRoutes() {
@@ -27,6 +28,7 @@ function AppRoutes() {
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/generation-jobs" element={<GenerationJobs />} />
+          <Route path="/report/result" element={<GeneratedReport />} />
           <Route path="/users" element={<Users />} />
           <Route path="/settings" element={<Settings />} />
         </Route>
