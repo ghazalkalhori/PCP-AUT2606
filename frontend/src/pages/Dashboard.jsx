@@ -86,7 +86,7 @@ export default function Dashboard() {
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #F8F7FF 0%, #FFF5F9 50%, #F0FDF8 100%)',
-      padding: '36px 40px',
+      padding: '24px 28px',
       fontFamily: "'Outfit', sans-serif",
     }}>
       <style>{`

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAuth } from '../context/AuthContext.jsx';
 import { NavLink } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -13,6 +14,7 @@ const navItems = [
 ];
 
 const Sidebar = ({ isOpen }) => {
+  const { logout } = useAuth();
   return (
     <aside className={clsx(
       "fixed inset-y-0 left-0 z-30 w-[210px] bg-[#0f1117] flex flex-col justify-between py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
@@ -48,7 +50,6 @@ const Sidebar = ({ isOpen }) => {
           ))}
         </nav>
       </div>
-
       <div className="px-6 border-t border-white/10 pt-4 mt-auto flex items-center gap-3">
         <div className="w-8 h-8 rounded-full bg-[#22c55e] flex items-center justify-center text-white font-bold text-sm shrink-0">
           C
@@ -57,7 +58,7 @@ const Sidebar = ({ isOpen }) => {
           <p className="text-white font-medium text-sm leading-tight truncate">Chris</p>
           <p className="text-gray-400 text-xs truncate">Administrator</p>
         </div>
-        <button className="text-gray-400 hover:text-white transition-colors">
+        <button onClick={logout} className="text-gray-400 hover:text-white transition-colors">
           <LogOut size={16} />
         </button>
       </div>
