@@ -73,40 +73,6 @@ function Jobs() {
         {}
       </div>
 
-      <div className="bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm overflow-x-auto whitespace-nowrap">
-        <div className="flex items-center gap-2 min-w-max">
-          {tabs.map((tab) => {
-            const isActive = activeFilter === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => {
-                 
-                  setActiveFilter(tab.key);
-                }}
-                className={clsx(
-                  'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
-                  isActive
-                    ? 'bg-[#0f1117] text-white'
-                    : 'text-gray-500 hover:text-gray-700'
-                )}
-              >
-                <span>{tab.label}</span>
-                <span
-                  className={clsx(
-                    'text-xs font-bold rounded-full px-2 py-0.5',
-                    isActive ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-600'
-                  )}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {}
         <div className="divide-y divide-gray-100">

@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { NavLink } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { clsx } from 'clsx';
-import { useAuth } from '../context/AuthContext.jsx';
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard' },
