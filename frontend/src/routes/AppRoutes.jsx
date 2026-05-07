@@ -7,6 +7,8 @@ import Matches from '../pages/Matches.jsx';
 import Leagues from '../pages/Leagues.jsx';
 import Reports from '../pages/Reports.jsx';
 import GenerationJobs from '../pages/GenerationJobs.jsx';
+import Competitions from '../pages/Competitions.jsx';
+import Jobs from '../pages/Jobs.jsx';
 import Users from '../pages/Users.jsx';
 import Settings from '../pages/Settings.jsx';
 import NotFound from '../pages/NotFound.jsx';
@@ -20,6 +22,8 @@ function AppRoutes() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/matches" element={<Matches />} />
+          <Route path="/competitions" element={<Competitions />} />
+          <Route path="/jobs" element={<Jobs />} />
           <Route path="/leagues" element={<Leagues />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/generation-jobs" element={<GenerationJobs />} />
