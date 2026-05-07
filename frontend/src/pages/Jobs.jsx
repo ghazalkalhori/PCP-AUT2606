@@ -1,0 +1,159 @@
+import { useMemo, useState } from 'react';
+import { CheckCircle, ChevronDown, Clock, Search, XCircle } from 'lucide-react';
+import { clsx } from 'clsx';
+import StatusBadge from '../components/StatusBadge.jsx';
+import { getJobCounts, getJobsByStatus } from '../services/jobsService.js';
+
+const typeBadgeStyles = {
+  'Post-Match': 'bg-purple-100 text-purple-700',
+  'Pre-Match': 'bg-blue-100 text-blue-700',
+  'League Summary': 'bg-yellow-100 text-yellow-700',
+};
+
+function JobStatusIcon({ icon }) {
+  if (icon === 'processing') return <Clock size={16} className="text-blue-400" />;
+  if (icon === 'approved') return <CheckCircle size={16} className="text-gray-800" />;
+  if (icon === 'completed') return <CheckCircle size={16} className="text-green-500" />;
+  if (icon === 'failed') return <XCircle size={16} className="text-red-500" />;
+  return <Clock size={16} className="text-gray-400" />;
+}
+
+function Jobs() {
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const counts = useMemo(() => getJobCounts(), []);
+
+  const jobs = useMemo(() => {
+
+    const base = getJobsByStatus(activeFilter);
+    const q = searchTerm.trim().toLowerCase();
+    if (!q) return base;
+
+    // TODO: replace with API search later
+    return base.filter((job) => {
+      return (
+        job.title.toLowerCase().includes(q) ||
+        job.id.toLowerCase().includes(q) ||
+        job.type.toLowerCase().includes(q)
+      );
+    });
+  }, [activeFilter, searchTerm]);
+
+  const tabs = [
+    { key: 'all', label: 'All', count: counts.all },
+    { key: 'approved', label: 'Approved', count: counts.approved },
+    { key: 'failed', label: 'Failed', count: counts.failed },
+    { key: 'processing', label: 'Processing', count: counts.processing },
+    { key: 'completed', label: 'Completed', count: counts.completed },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">Jobs</h1>
+        <p className="text-gray-400 text-sm mt-0.5">
+          Track AI generation jobs and their statuses
+        </p>
+      </div>
+
+      <div className="relative">
+        <Search
+          size={16}
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+        />
+        <input
+          id="jobs-search"
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search jobs by ID, Match or Type..."
+          className="w-full bg-white rounded-xl border border-gray-200 py-3 pl-10 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors"
+        />
+        {}
+      </div>
+
+      <div className="bg-white rounded-xl px-4 py-3 border border-gray-100 shadow-sm overflow-x-auto whitespace-nowrap">
+        <div className="flex items-center gap-2 min-w-max">
+          {tabs.map((tab) => {
+            const isActive = activeFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => {
+                 
+                  setActiveFilter(tab.key);
+                }}
+                className={clsx(
+                  'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold transition-colors',
+                  isActive
+                    ? 'bg-[#0f1117] text-white'
+                    : 'text-gray-500 hover:text-gray-700'
+                )}
+              >
+                <span>{tab.label}</span>
+                <span
+                  className={clsx(
+                    'text-xs font-bold rounded-full px-2 py-0.5',
+                    isActive ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-600'
+                  )}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        {}
+        <div className="divide-y divide-gray-100">
+          {jobs.map((job) => (
+            <div
+              key={job.id}
+              className="px-6 py-4 flex items-start justify-between gap-4 hover:bg-gray-50 transition-colors"
+            >
+              <div className="min-w-0">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="mt-0.5 shrink-0">
+                    <JobStatusIcon icon={job.icon} />
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-gray-900 truncate">
+                        {job.title}
+                      </span>
+                      <span
+                        className={clsx(
+                          'rounded-full px-3 py-0.5 text-xs font-medium',
+                          typeBadgeStyles[job.type]
+                        )}
+                      >
+                        {job.type}
+                      </span>
+                    </div>
+                    <div className="text-gray-400 text-sm mt-1">
+                      {job.id} · {job.date}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center shrink-0">
+                <StatusBadge status={job.status} />
+                <ChevronDown size={16} className="text-gray-400 ml-3" />
+                {}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Jobs;
+

@@ -3,14 +3,13 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { NavLink } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const navItems = [
   { name: 'Dashboard', path: '/dashboard' },
   { name: 'Matches', path: '/matches' },
   { name: 'Competitions', path: '/competitions' },
   { name: 'Jobs', path: '/jobs' },
-  { name: 'Generate', path: '/generate' },
-  { name: 'Content', path: '/content' },
 ];
 
 const Sidebar = ({ isOpen }) => {
