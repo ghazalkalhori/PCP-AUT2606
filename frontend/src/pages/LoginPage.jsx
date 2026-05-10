@@ -9,8 +9,10 @@ import {
   EyeOff,
   AlertCircle,
 } from "lucide-react";
+import Button from "../components/ButtonL.jsx";
+import FormInput from "../components/FormInputL.jsx";
 
-function Login() {
+function LoginPage() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -195,4 +197,4 @@ function Login() {
   );
 }
 
-export default Login;
+export default LoginPage;
