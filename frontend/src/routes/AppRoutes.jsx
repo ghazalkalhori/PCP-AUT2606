@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout.jsx';
 import ProtectedRoute from '../components/ProtectedRoute.jsx';
-import Login from '../pages/Login.jsx';
+import LoginPage from '../pages/LoginPage.jsx';
 import Dashboard from '../pages/Dashboard.jsx';
 import Matches from '../pages/Matches.jsx';
 import Leagues from '../pages/Leagues.jsx';
@@ -17,7 +17,7 @@ import NotFound from '../pages/NotFound.jsx';
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
+      <Route path="/login" element={<LoginPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

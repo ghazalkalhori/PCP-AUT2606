@@ -58,7 +58,7 @@ function LoginPage() {
     }
 
     const validEmail = "admin@reporta.ai";
-    const validPassword = "password123";
+    const validPassword = "password@123";
 
     if (formData.email !== validEmail || formData.password !== validPassword) {
       setError("Invalid email or password.");
