@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw, Bookmark, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import PageContent from '../components/PageContent.jsx';
 
 const DUMMY_REPORT = {
   jobId: 'JOB-12345',
@@ -32,15 +33,15 @@ function GeneratedReport() {
   const matchDate = type === 'match' && data ? `${data.date} at ${data.time}` : '9 Apr 2025 at 21:00';
 
   return (
-    <div className="min-h-full bg-[#f5f6fa]">
+    <PageContent className="min-h-full bg-[#f5f6fa] pb-10 lg:pb-12">
 
-      <div className="px-4 sm:px-6 pt-5 pb-2">
+      <div className="pt-5 pb-2">
         <button onClick={() => navigate(-1)} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
           <ArrowLeft size={15} /> Back to Jobs
         </button>
       </div>
 
-      <div className="px-4 sm:px-6 pb-4">
+      <div className="pb-4">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Generated Content</h1>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-700 border border-green-100">
@@ -50,7 +51,7 @@ function GeneratedReport() {
         <p className="text-sm text-gray-400 mt-1">Job ID: {DUMMY_REPORT.jobId}</p>
       </div>
 
-      <div className="px-4 sm:px-6 pb-5">
+      <div className="pb-5">
         <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm flex-wrap">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
@@ -78,7 +79,7 @@ function GeneratedReport() {
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 pb-10 flex flex-col lg:flex-row gap-5 items-start">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
 
         <div className="flex-1 bg-white border border-gray-100 rounded-xl shadow-sm p-5 sm:p-8 min-w-0">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug mb-4">{DUMMY_REPORT.title}</h2>
@@ -130,7 +131,7 @@ function GeneratedReport() {
         </div>
 
       </div>
-    </div>
+    </PageContent>
   );
 }
 

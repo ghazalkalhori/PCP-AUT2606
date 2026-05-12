@@ -11,11 +11,11 @@ const navItems = [
   { name: 'Jobs', path: '/jobs' },
 ];
 
-const Sidebar = ({ isOpen }) => {
+const Sidebar = ({ isOpen, onNavigate }) => {
   const { logout } = useAuth();
   return (
     <aside className={clsx(
-      "fixed inset-y-0 left-0 z-30 w-[210px] bg-[#0f1117] flex flex-col justify-between py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
+      "fixed inset-y-0 left-0 z-30 flex w-[210px] shrink-0 flex-col justify-between bg-[#0f1117] py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
       isOpen ? "translate-x-0" : "-translate-x-full"
     )}>
       <div>
@@ -34,6 +34,7 @@ const Sidebar = ({ isOpen }) => {
             <NavLink
               key={item.name}
               to={item.path}
+              onClick={onNavigate}
               className={({ isActive }) =>
                 clsx(
                   'px-3 py-2 rounded-lg text-sm transition-colors',

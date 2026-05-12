@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { CheckCircle, ChevronDown, Clock, Search, XCircle } from 'lucide-react';
 import { clsx } from 'clsx';
+import PageContent from '../components/PageContent.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import { getJobCounts, getJobsByStatus } from '../services/jobsService.js';
 
@@ -49,14 +51,13 @@ function Jobs() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Jobs</h1>
-        <p className="text-gray-400 text-sm mt-0.5">
-          Track AI generation jobs and their statuses
-        </p>
-      </div>
-
+    <>
+      <PageHeader
+        title="Jobs"
+        description="Track AI generation jobs and their statuses"
+      />
+      <PageContent>
+        <div className="space-y-6">
       <div className="relative">
         <Search
           size={16}
@@ -73,13 +74,13 @@ function Jobs() {
         {}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
         {}
         <div className="divide-y divide-gray-100">
           {jobs.map((job) => (
             <div
               key={job.id}
-              className="px-6 py-4 flex items-start justify-between gap-4 hover:bg-gray-50 transition-colors"
+              className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-gray-50 sm:flex-row sm:items-start sm:justify-between sm:px-6"
             >
               <div className="min-w-0">
                 <div className="flex items-start gap-3 min-w-0">
@@ -108,7 +109,7 @@ function Jobs() {
                 </div>
               </div>
 
-              <div className="flex items-center shrink-0">
+              <div className="flex shrink-0 items-center justify-between sm:justify-start">
                 <StatusBadge status={job.status} />
                 <ChevronDown size={16} className="text-gray-400 ml-3" />
                 {}
@@ -117,7 +118,9 @@ function Jobs() {
           ))}
         </div>
       </div>
-    </div>
+        </div>
+      </PageContent>
+    </>
   );
 }
 

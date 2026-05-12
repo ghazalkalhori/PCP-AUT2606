@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Search, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
+import PageContent from '../components/PageContent.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
 import GenerateReportModal from '../components/modals/GenerateReportModal.jsx';
 import { getMatches } from '../services/matchesService.js';
@@ -113,15 +115,15 @@ function makeTeamInfo(teamName, fallback, color) {
 /** Home vs Away cell with avatars + names */
 function MatchCell({ home, away }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2 w-[120px]">
+    <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
+      <div className="flex min-w-0 items-center gap-2 sm:w-[120px]">
         <TeamBadge team={home} />
-        <span className="text-gray-900 text-sm font-medium">{home.name}</span>
+        <span className="truncate text-sm font-medium text-gray-900">{home.name}</span>
       </div>
-      <span className="text-gray-400 text-[11px] italic w-4 text-center">vs</span>
-      <div className="flex items-center gap-2 w-[120px]">
+      <span className="w-4 shrink-0 text-center text-[11px] italic text-gray-400">vs</span>
+      <div className="flex min-w-0 items-center gap-2 sm:w-[120px]">
         <TeamBadge team={away} />
-        <span className="text-gray-900 text-sm font-medium">{away.name}</span>
+        <span className="truncate text-sm font-medium text-gray-900">{away.name}</span>
       </div>
     </div>
   );
@@ -184,15 +186,13 @@ function Matches() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Matches</h1>
-        <p className="text-gray-400 text-sm mt-0.5">
-          Browse and manage football match data
-        </p>
-      </div>
-
+    <>
+      <PageHeader
+        title="Matches"
+        description="Browse and manage football match data"
+      />
+      <PageContent>
+        <div className="space-y-6">
       {/* Search bar */}
       <div className="relative">
         <Search
@@ -208,25 +208,26 @@ function Matches() {
       </div>
 
       {/* Table */}
-      <div className="hidden md:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/50">
-              {columns.map((col) => (
-                <th
-                  key={col}
-                  className={clsx(
-                    "px-4 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider",
-                    col === 'SCORE' && "hidden lg:table-cell"
-                  )}
-                >
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
+      <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
+        <div className="overflow-x-auto">
+          <table className="min-w-[900px] w-full text-left">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50/50">
+                {columns.map((col) => (
+                  <th
+                    key={col}
+                    className={clsx(
+                      "px-4 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider",
+                      col === 'SCORE' && "hidden lg:table-cell"
+                    )}
+                  >
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
 
-          <tbody>
+            <tbody>
             {matches.map((match) => (
               <tr
                 key={match.id}
@@ -265,15 +266,16 @@ function Matches() {
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Mobile Card List */}
       <div className="md:hidden space-y-4">
         {matches.map((match) => (
-          <div key={match.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-4">
-            <div className="flex items-center justify-between">
+          <div key={match.id} className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="min-w-0">
               <MatchCell home={match.homeTeam} away={match.awayTeam} />
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -309,7 +311,9 @@ function Matches() {
         type="match"
         data={selectedMatch}
       />
-    </div>
+        </div>
+      </PageContent>
+    </>
   );
 }
 

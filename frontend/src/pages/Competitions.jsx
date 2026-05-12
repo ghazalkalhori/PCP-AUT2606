@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Users, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
+import PageContent from '../components/PageContent.jsx';
+import PageHeader from '../components/PageHeader.jsx';
 import GenerateReportModal from '../components/modals/GenerateReportModal.jsx';
 import { getCompetitions } from '../services/competitionsService.js';
 
@@ -91,38 +93,37 @@ function Competitions() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Competitions</h1>
-        <p className="text-gray-400 text-sm mt-0.5">
-          Manage leagues and tournament data
-        </p>
-      </div>
-
+    <>
+      <PageHeader
+        title="Competitions"
+        description="Manage leagues and tournament data"
+      />
+      <PageContent>
+        <div className="space-y-6">
       {/* Count label */}
       <p className="text-gray-500 text-sm">{competitions.length} competitions</p>
 
       {/* Table */}
-      <div className="hidden md:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/50">
-              {columns.map((col) => (
-                <th
-                  key={col}
-                  className={clsx(
-                    "px-4 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider",
-                    col === 'PROGRESS' && "hidden lg:table-cell"
-                  )}
-                >
-                  {col}
-                </th>
-              ))}
-            </tr>
-          </thead>
+      <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
+        <div className="overflow-x-auto">
+          <table className="min-w-[780px] w-full text-left">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50/50">
+                {columns.map((col) => (
+                  <th
+                    key={col}
+                    className={clsx(
+                      "px-4 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider",
+                      col === 'PROGRESS' && "hidden lg:table-cell"
+                    )}
+                  >
+                    {col}
+                  </th>
+                ))}
+              </tr>
+            </thead>
 
-          <tbody>
+            <tbody>
             {competitions.map((comp) => (
               <tr
                 key={comp.id}
@@ -159,14 +160,15 @@ function Competitions() {
                 </td>
               </tr>
             ))}
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Mobile Card List */}
       <div className="md:hidden space-y-4">
         {competitions.map((comp) => (
-          <div key={comp.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-4">
+          <div key={comp.id} className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
             <CompetitionCell name={comp.name} country={comp.country} flag={comp.flag} />
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -195,7 +197,9 @@ function Competitions() {
         type="competition"
         data={selectedComp}
       />
-    </div>
+        </div>
+      </PageContent>
+    </>
   );
 }
 

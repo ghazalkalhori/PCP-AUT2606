@@ -9,11 +9,11 @@ import {
   EyeOff,
   AlertCircle,
 } from "lucide-react";
-import Button from "../components/ButtonL.jsx";
-import FormInput from "../components/FormInputL.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -47,12 +47,15 @@ function LoginPage() {
     event.preventDefault();
     setError("");
 
-    if (!formData.email || !formData.password) {
+    const email = formData.email.trim();
+    const password = formData.password.trim();
+
+    if (!email || !password) {
       setError("Please fill in all fields.");
       return;
     }
 
-    if (!validateEmail(formData.email)) {
+    if (!validateEmail(email)) {
       setError("Please enter a valid email address.");
       return;
     }
@@ -60,7 +63,7 @@ function LoginPage() {
     const validEmail = "admin@reporta.ai";
     const validPassword = "password@123";
 
-    if (formData.email !== validEmail || formData.password !== validPassword) {
+    if (email !== validEmail || password !== validPassword) {
       setError("Invalid email or password.");
       return;
     }
@@ -68,13 +71,12 @@ function LoginPage() {
     setLoading(true);
 
     setTimeout(() => {
-      navigate("/login");
-
-      if (formData.remember) {
-        localStorage.setItem("reporta_user", JSON.stringify(formData));
-      }
-
-      navigate("/login");
+      login({
+        email,
+        name: "Admin",
+        remember: formData.remember,
+      });
+      navigate("/dashboard", { replace: true });
     }, 900);
   }
 
