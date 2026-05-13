@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Search, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
 import PageContent from '../components/PageContent.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
+import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import GenerateReportModal from '../components/modals/GenerateReportModal.jsx';
 import { getMatches } from '../services/matchesService.js';
-
-const matches = getMatches();
 
 /** Rounded-square team avatar with abbreviation */
 function TeamBadge({ team }) {
@@ -19,97 +18,6 @@ function TeamBadge({ team }) {
       {team.abbreviation}
     </div>
   );
-}
-
-function formatMatch(match) {
-  return {
-    id: match.id,
-    date: match.date,
-    time: match.time,
-    competition: match.competition,
-    league: match.league,
-    ground: match.ground,
-    status: match.status,
-
-    homeTeam: makeTeamInfo(
-      match.home_team,
-      'Home Team',
-      '#10b981'
-    ),
-
-    awayTeam: makeTeamInfo(
-      match.away_team,
-      'Away Team',
-      '#6366f1'
-    ),
-
-    score: null,
-    raw: match,
-  };
-}
-
-const API_TOKEN = import.meta.env.VITE_DRIBL_API_TOKEN;
-
-export async function getMatchList() {
-  const url =
-    'https://open.dribl.com/api/fixtures?start_date=2026-04-07T00:00:00&end_date=2026-05-07T23:59:59&team_name=DFA';
-
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${API_TOKEN}`,
-        Accept: 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
-    }
-
-    const result = await response.json();
-
-    if (!result.data || result.data.length === 0) {
-      return [];
-    }
-
-    const matches = result.data.map((match) => {
-      const a = match.attributes;
-
-      return {
-        id: match.id,
-        date: a.local_start_date,
-        time: a.local_start_time,
-        competition: a.competition_name,
-        league: a.league_name,
-        home_team: a.home_team,
-        away_team: a.away_team,
-        ground: a.ground_name,
-        status: a.event_status,
-      };
-    });
-
-    return matches;
-  } catch (error) {
-    console.error('Failed to fetch match list:', error);
-    return [];
-  }
-}
-
-function makeTeamInfo(teamName, fallback, color) {
-  return {
-    name: teamName || fallback,
-    abbreviation: teamName
-      ? teamName
-          .split(' ')
-          .filter(Boolean)
-          .slice(0, 2)
-          .map((word) => word[0])
-          .join('')
-          .toUpperCase()
-      : fallback.slice(0, 3).toUpperCase(),
-    color,
-  };
 }
 
 /** Home vs Away cell with avatars + names */
@@ -177,8 +85,40 @@ function GenerateButton({ onClick }) {
 const columns = ['MATCH', 'COMPETITION', 'DATE', 'STATUS', 'SCORE', 'ACTIONS'];
 
 function Matches() {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMatches() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getMatches();
+        if (!cancelled) {
+          setMatches(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadMatches();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleGenerateClick = (match) => {
     setSelectedMatch(match);
@@ -207,103 +147,119 @@ function Matches() {
         />
       </div>
 
-      {/* Table */}
-      <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
-        <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full text-left">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                {columns.map((col) => (
-                  <th
-                    key={col}
-                    className={clsx(
-                      "px-4 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider",
-                      col === 'SCORE' && "hidden lg:table-cell"
-                    )}
-                  >
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody>
-            {matches.map((match) => (
-              <tr
-                key={match.id}
-                className="border-b border-gray-50 last:border-b-0 hover:bg-gray-50/50 transition-colors"
-              >
-                {/* MATCH */}
-                <td className="px-4 py-4 whitespace-nowrap">
-                  <MatchCell home={match.homeTeam} away={match.awayTeam} />
-                </td>
-
-                {/* COMPETITION */}
-                <td className="px-4 py-4">
-                  <CompetitionCell name={match.competition} />
-                </td>
-
-                {/* DATE */}
-                <td className="px-4 py-4 whitespace-nowrap">
-                  <DateCell date={match.date} time={match.time} />
-                </td>
-
-                {/* STATUS */}
-                <td className="px-4 py-4">
-                  <StatusBadge status={match.status} />
-                </td>
-
-                {/* SCORE */}
-                <td className="hidden lg:table-cell px-4 py-4">
-                  <ScoreCell score={match.score} />
-                </td>
-
-                {/* ACTIONS */}
-                <td className="px-4 py-4">
-                  {match.status !== 'live' && (
-                    <GenerateButton onClick={() => handleGenerateClick(match)} />
-                  )}
-                </td>
-              </tr>
-            ))}
-            </tbody>
-          </table>
+      {loading && (
+        <div className="flex justify-center py-10">
+          <LoadingSpinner />
         </div>
-      </div>
+      )}
 
-      {/* Mobile Card List */}
-      <div className="md:hidden space-y-4">
-        {matches.map((match) => (
-          <div key={match.id} className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-            <div className="min-w-0">
-              <MatchCell home={match.homeTeam} away={match.awayTeam} />
+      {error && !loading && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Failed to load matches. Please try again.
+        </div>
+      )}
+
+      {!loading && !error && (
+        <>
+          {/* Table */}
+          <div className="hidden overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm md:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-[900px] w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50">
+                    {columns.map((col) => (
+                      <th
+                        key={col}
+                        className={clsx(
+                          "px-4 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider",
+                          col === 'SCORE' && "hidden lg:table-cell"
+                        )}
+                      >
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+
+                <tbody>
+                {matches.map((match) => (
+                  <tr
+                    key={match.id}
+                    className="border-b border-gray-50 last:border-b-0 hover:bg-gray-50/50 transition-colors"
+                  >
+                    {/* MATCH */}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <MatchCell home={match.homeTeam} away={match.awayTeam} />
+                    </td>
+
+                    {/* COMPETITION */}
+                    <td className="px-4 py-4">
+                      <CompetitionCell name={match.competition} />
+                    </td>
+
+                    {/* DATE */}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <DateCell date={match.date} time={match.time} />
+                    </td>
+
+                    {/* STATUS */}
+                    <td className="px-4 py-4">
+                      <StatusBadge status={match.status} />
+                    </td>
+
+                    {/* SCORE */}
+                    <td className="hidden lg:table-cell px-4 py-4">
+                      <ScoreCell score={match.score} />
+                    </td>
+
+                    {/* ACTIONS */}
+                    <td className="px-4 py-4">
+                      {match.status !== 'live' && (
+                        <GenerateButton onClick={() => handleGenerateClick(match)} />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                </tbody>
+              </table>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-400 text-xs block mb-1">Competition</span>
-                <CompetitionCell name={match.competition} />
-              </div>
-              <div>
-                <span className="text-gray-400 text-xs block mb-1">Date</span>
-                <DateCell date={match.date} time={match.time} />
-              </div>
-              <div>
-                <span className="text-gray-400 text-xs block mb-1">Status</span>
-                <StatusBadge status={match.status} />
-              </div>
-              <div>
-                <span className="text-gray-400 text-xs block mb-1">Score</span>
-                <ScoreCell score={match.score} />
-              </div>
-            </div>
-            {match.status !== 'live' && (
-              <div className="pt-2 border-t border-gray-50">
-                <GenerateButton onClick={() => handleGenerateClick(match)} />
-              </div>
-            )}
           </div>
-        ))}
-      </div>
+
+          {/* Mobile Card List */}
+          <div className="md:hidden space-y-4">
+            {matches.map((match) => (
+              <div key={match.id} className="flex flex-col gap-4 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="min-w-0">
+                  <MatchCell home={match.homeTeam} away={match.awayTeam} />
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-400 text-xs block mb-1">Competition</span>
+                    <CompetitionCell name={match.competition} />
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-xs block mb-1">Date</span>
+                    <DateCell date={match.date} time={match.time} />
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-xs block mb-1">Status</span>
+                    <StatusBadge status={match.status} />
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-xs block mb-1">Score</span>
+                    <ScoreCell score={match.score} />
+                  </div>
+                </div>
+                {match.status !== 'live' && (
+                  <div className="pt-2 border-t border-gray-50">
+                    <GenerateButton onClick={() => handleGenerateClick(match)} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <GenerateReportModal
         isOpen={modalOpen}

@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CheckCircle, ChevronDown, Clock, Search, XCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import PageContent from '../components/PageContent.jsx';
 import PageHeader from '../components/PageHeader.jsx';
 import StatusBadge from '../components/StatusBadge.jsx';
+import LoadingSpinner from '../components/LoadingSpinner.jsx';
 import { getJobCounts, getJobsByStatus } from '../services/jobsService.js';
 
 const typeBadgeStyles = {
@@ -23,24 +24,85 @@ function JobStatusIcon({ icon }) {
 function Jobs() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [jobs, setJobs] = useState([]);
+  const [counts, setCounts] = useState({
+    all: 0,
+    approved: 0,
+    failed: 0,
+    processing: 0,
+    completed: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const counts = useMemo(() => getJobCounts(), []);
+  // Load tab counts once on mount.
+  useEffect(() => {
+    let cancelled = false;
 
-  const jobs = useMemo(() => {
+    async function loadCounts() {
+      try {
+        const data = await getJobCounts();
+        if (!cancelled) {
+          setCounts(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err);
+        }
+      }
+    }
 
-    const base = getJobsByStatus(activeFilter);
+    loadCounts();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Reload the job list whenever the status filter changes.
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadJobs() {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getJobsByStatus(activeFilter);
+        if (!cancelled) {
+          setJobs(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadJobs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFilter]);
+
+  // Search is applied client-side over whatever the service returned.
+  // Later, swap this for `apiRequest('/jobs?status=...&q=...')` inside the service.
+  const visibleJobs = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return base;
+    if (!q) return jobs;
 
-    // TODO: replace with API search later
-    return base.filter((job) => {
+    return jobs.filter((job) => {
       return (
         job.title.toLowerCase().includes(q) ||
         job.id.toLowerCase().includes(q) ||
         job.type.toLowerCase().includes(q)
       );
     });
-  }, [activeFilter, searchTerm]);
+  }, [jobs, searchTerm]);
 
   const tabs = [
     { key: 'all', label: 'All', count: counts.all },
@@ -71,52 +133,61 @@ function Jobs() {
           placeholder="Search jobs by ID, Match or Type..."
           className="w-full bg-white rounded-xl border border-gray-200 py-3 pl-10 pr-4 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 focus:border-emerald-500/50 transition-colors"
         />
-        {}
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
-        {}
-        <div className="divide-y divide-gray-100">
-          {jobs.map((job) => (
-            <div
-              key={job.id}
-              className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-gray-50 sm:flex-row sm:items-start sm:justify-between sm:px-6"
-            >
-              <div className="min-w-0">
-                <div className="flex items-start gap-3 min-w-0">
-                  <div className="mt-0.5 shrink-0">
-                    <JobStatusIcon icon={job.icon} />
-                  </div>
+      {error && !loading && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          Failed to load jobs. Please try again.
+        </div>
+      )}
 
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-semibold text-gray-900 truncate">
-                        {job.title}
-                      </span>
-                      <span
-                        className={clsx(
-                          'rounded-full px-3 py-0.5 text-xs font-medium',
-                          typeBadgeStyles[job.type]
-                        )}
-                      >
-                        {job.type}
-                      </span>
+      <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <LoadingSpinner />
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {visibleJobs.map((job) => (
+              <div
+                key={job.id}
+                className="flex flex-col gap-4 px-4 py-4 transition-colors hover:bg-gray-50 sm:flex-row sm:items-start sm:justify-between sm:px-6"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="mt-0.5 shrink-0">
+                      <JobStatusIcon icon={job.icon} />
                     </div>
-                    <div className="text-gray-400 text-sm mt-1">
-                      {job.id} · {job.date}
+
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-gray-900 truncate">
+                          {job.title}
+                        </span>
+                        <span
+                          className={clsx(
+                            'rounded-full px-3 py-0.5 text-xs font-medium',
+                            typeBadgeStyles[job.type]
+                          )}
+                        >
+                          {job.type}
+                        </span>
+                      </div>
+                      <div className="text-gray-400 text-sm mt-1">
+                        {job.id} · {job.date}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex shrink-0 items-center justify-between sm:justify-start">
-                <StatusBadge status={job.status} />
-                <ChevronDown size={16} className="text-gray-400 ml-3" />
-                {}
+                <div className="flex shrink-0 items-center justify-between sm:justify-start">
+                  <StatusBadge status={job.status} />
+                  <ChevronDown size={16} className="text-gray-400 ml-3" />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
         </div>
       </PageContent>
@@ -125,4 +196,3 @@ function Jobs() {
 }
 
 export default Jobs;
-

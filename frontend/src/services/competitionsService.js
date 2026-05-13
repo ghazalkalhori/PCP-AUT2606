@@ -1,13 +1,23 @@
 import { mockCompetitions } from './mockData/competitions.js';
-
-// TODO: replace with Dribl API call
-// e.g. export const getCompetitions = () => apiClient.get('/competitions');
+// import { apiRequest } from './apiClient.js';
 
 /**
  * Returns the list of competitions.
- * Currently returns mock data — swap this implementation
- * with a real Dribl API call when the backend is ready.
+ *
+ * Currently resolves with mock data. Once the backend is ready, replace the
+ * body with a real API call, e.g.:
+ *
+ *   return apiRequest('/competitions');
  */
-export const getCompetitions = () => {
-  return mockCompetitions;
-};
+export async function getCompetitions() {
+  return Promise.resolve(mockCompetitions);
+}
+
+/**
+ * Returns a single competition by id.
+ * Mock implementation; swap with `apiRequest(`/competitions/${competitionId}`)` later.
+ */
+export async function getCompetitionById(competitionId) {
+  const competition = mockCompetitions.find((c) => c.id === competitionId);
+  return Promise.resolve(competition || null);
+}

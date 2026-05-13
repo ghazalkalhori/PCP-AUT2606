@@ -1,13 +1,26 @@
 import { mockMatches } from './mockData/matches.js';
-
-// TODO: replace with Dribl API call
-// e.g. export const getMatches = () => apiClient.get('/matches');
+// import { apiRequest } from './apiClient.js';
 
 /**
  * Returns the list of matches.
- * Currently returns mock data — swap this implementation
- * with a real Dribl API call when the backend is ready.
+ *
+ * Currently resolves with mock data. Once the backend is ready, replace the
+ * body with a real API call, e.g.:
+ *
+ *   return apiRequest('/matches');
+ *
+ * The function signature (async, Promise-returning) is intentionally already
+ * the same shape the real call will use, so callers do not need to change.
  */
-export const getMatches = () => {
-  return mockMatches;
-};
+export async function getMatches() {
+  return Promise.resolve(mockMatches);
+}
+
+/**
+ * Returns a single match by id.
+ * Mock implementation; swap with `apiRequest(`/matches/${matchId}`)` later.
+ */
+export async function getMatchById(matchId) {
+  const match = mockMatches.find((m) => m.id === matchId);
+  return Promise.resolve(match || null);
+}
