@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 export function usePageTitle(title) {
   useEffect(() => {
-    document.title = title ? `${title} | Reporta AI` : 'Reporta AI';
+    document.title = title ? `${title} | Reporta AI` : "Reporta AI";
   }, [title]);
 }

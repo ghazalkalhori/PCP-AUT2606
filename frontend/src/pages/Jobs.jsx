@@ -1,31 +1,32 @@
-import { useMemo, useState } from 'react';
-import { CheckCircle, ChevronDown, Clock, Search, XCircle } from 'lucide-react';
-import { clsx } from 'clsx';
-import StatusBadge from '../components/StatusBadge.jsx';
-import { getJobCounts, getJobsByStatus } from '../services/jobsService.js';
+import { useMemo, useState } from "react";
+import { CheckCircle, ChevronDown, Clock, Search, XCircle } from "lucide-react";
+import { clsx } from "clsx";
+import StatusBadge from "../components/StatusBadge.jsx";
 
 const typeBadgeStyles = {
-  'Post-Match': 'bg-purple-100 text-purple-700',
-  'Pre-Match': 'bg-blue-100 text-blue-700',
-  'League Summary': 'bg-yellow-100 text-yellow-700',
+  "Post-Match": "bg-purple-100 text-purple-700",
+  "Pre-Match": "bg-blue-100 text-blue-700",
+  "League Summary": "bg-yellow-100 text-yellow-700",
 };
 
 function JobStatusIcon({ icon }) {
-  if (icon === 'processing') return <Clock size={16} className="text-blue-400" />;
-  if (icon === 'approved') return <CheckCircle size={16} className="text-gray-800" />;
-  if (icon === 'completed') return <CheckCircle size={16} className="text-green-500" />;
-  if (icon === 'failed') return <XCircle size={16} className="text-red-500" />;
+  if (icon === "processing")
+    return <Clock size={16} className="text-blue-400" />;
+  if (icon === "approved")
+    return <CheckCircle size={16} className="text-gray-800" />;
+  if (icon === "completed")
+    return <CheckCircle size={16} className="text-green-500" />;
+  if (icon === "failed") return <XCircle size={16} className="text-red-500" />;
   return <Clock size={16} className="text-gray-400" />;
 }
 
 function Jobs() {
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [activeFilter, setActiveFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
   const counts = useMemo(() => getJobCounts(), []);
 
   const jobs = useMemo(() => {
-
     const base = getJobsByStatus(activeFilter);
     const q = searchTerm.trim().toLowerCase();
     if (!q) return base;
@@ -41,11 +42,11 @@ function Jobs() {
   }, [activeFilter, searchTerm]);
 
   const tabs = [
-    { key: 'all', label: 'All', count: counts.all },
-    { key: 'approved', label: 'Approved', count: counts.approved },
-    { key: 'failed', label: 'Failed', count: counts.failed },
-    { key: 'processing', label: 'Processing', count: counts.processing },
-    { key: 'completed', label: 'Completed', count: counts.completed },
+    { key: "all", label: "All", count: counts.all },
+    { key: "approved", label: "Approved", count: counts.approved },
+    { key: "failed", label: "Failed", count: counts.failed },
+    { key: "processing", label: "Processing", count: counts.processing },
+    { key: "completed", label: "Completed", count: counts.completed },
   ];
 
   return (
@@ -94,8 +95,8 @@ function Jobs() {
                       </span>
                       <span
                         className={clsx(
-                          'rounded-full px-3 py-0.5 text-xs font-medium',
-                          typeBadgeStyles[job.type]
+                          "rounded-full px-3 py-0.5 text-xs font-medium",
+                          typeBadgeStyles[job.type],
                         )}
                       >
                         {job.type}
@@ -122,4 +123,3 @@ function Jobs() {
 }
 
 export default Jobs;
-

@@ -1,13 +1,20 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+// ProtectedRoute checks whether the user is logged in.
+// If no JWT token exists, user is redirected to login page.
+
+import { Navigate, Outlet } from "react-router-dom";
 
 function ProtectedRoute() {
-  const { isAuthenticated } = useAuth();
+  // Read JWT token saved after login
+  const token = localStorage.getItem("reporta_token");
 
-  if (!isAuthenticated) {
+  // If token does not exist,
+  // redirect user back to login page
+  if (!token) {
     return <Navigate to="/login" replace />;
   }
 
+  // If token exists,
+  // allow user to access protected pages
   return <Outlet />;
 }
 

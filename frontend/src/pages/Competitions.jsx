@@ -1,10 +1,7 @@
-import { useState } from 'react';
-import { Users, Sparkles } from 'lucide-react';
-import { clsx } from 'clsx';
-import GenerateReportModal from '../components/modals/GenerateReportModal.jsx';
-import { getCompetitions } from '../services/competitionsService.js';
-
-const competitions = getCompetitions();
+import { useState } from "react";
+import { Users, Sparkles } from "lucide-react";
+import { clsx } from "clsx";
+import GenerateReportModal from "../components/modals/GenerateReportModal.jsx";
 
 /** Rounded-square avatar with flag emoji */
 function FlagAvatar({ flag }) {
@@ -79,7 +76,14 @@ function SummaryButton({ onClick }) {
   );
 }
 
-const columns = ['COMPETITION', 'SEASON', 'PROGRESS', 'TEAMS', 'STATUS', 'ACTIONS'];
+const columns = [
+  "COMPETITION",
+  "SEASON",
+  "PROGRESS",
+  "TEAMS",
+  "STATUS",
+  "ACTIONS",
+];
 
 function Competitions() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -101,7 +105,9 @@ function Competitions() {
       </div>
 
       {/* Count label */}
-      <p className="text-gray-500 text-sm">{competitions.length} competitions</p>
+      <p className="text-gray-500 text-sm">
+        {competitions.length} competitions
+      </p>
 
       {/* Table */}
       <div className="hidden md:block bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -113,7 +119,7 @@ function Competitions() {
                   key={col}
                   className={clsx(
                     "px-4 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider",
-                    col === 'PROGRESS' && "hidden lg:table-cell"
+                    col === "PROGRESS" && "hidden lg:table-cell",
                   )}
                 >
                   {col}
@@ -130,7 +136,11 @@ function Competitions() {
               >
                 {/* COMPETITION */}
                 <td className="px-4 py-4 whitespace-nowrap">
-                  <CompetitionCell name={comp.name} country={comp.country} flag={comp.flag} />
+                  <CompetitionCell
+                    name={comp.name}
+                    country={comp.country}
+                    flag={comp.flag}
+                  />
                 </td>
 
                 {/* SEASON */}
@@ -166,8 +176,15 @@ function Competitions() {
       {/* Mobile Card List */}
       <div className="md:hidden space-y-4">
         {competitions.map((comp) => (
-          <div key={comp.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-4">
-            <CompetitionCell name={comp.name} country={comp.country} flag={comp.flag} />
+          <div
+            key={comp.id}
+            className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-4"
+          >
+            <CompetitionCell
+              name={comp.name}
+              country={comp.country}
+              flag={comp.flag}
+            />
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-400 text-xs block mb-1">Season</span>

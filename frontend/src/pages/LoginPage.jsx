@@ -1,3 +1,8 @@
+// LoginPage handles user authentication.
+// It sends login credentials to the FastAPI backend,
+// receives a JWT token, stores it in localStorage,
+// and redirects the user to the dashboard after login.
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,23 +14,31 @@ import {
   EyeOff,
   AlertCircle,
 } from "lucide-react";
-import Button from "../components/ButtonL.jsx";
-import FormInput from "../components/FormInputL.jsx";
 
 function LoginPage() {
+  // Used for page navigation after successful login
   const navigate = useNavigate();
 
+  // Form input state
   const [formData, setFormData] = useState({
     email: "",
     password: "",
     remember: false,
   });
 
+  // Toggle password visibility
   const [showPassword, setShowPassword] = useState(false);
+
+  // Detect Caps Lock warning
   const [capsWarning, setCapsWarning] = useState(false);
+
+  // Error message state
   const [error, setError] = useState("");
+
+  // Loading state during login request
   const [loading, setLoading] = useState(false);
 
+  // Handle all form input changes
   function handleChange(event) {
     const { name, value, type, checked } = event.target;
 
@@ -35,47 +48,70 @@ function LoginPage() {
     }));
   }
 
+  // Detect Caps Lock while typing password
   function handlePasswordKey(event) {
     setCapsWarning(event.getModifierState("CapsLock"));
   }
 
-  function validateEmail(email) {
-    return /\S+@\S+\.\S+/.test(email);
-  }
-
+  // Handle login form submission
   async function handleSubmit(event) {
     event.preventDefault();
+
+    // Clear previous errors
     setError("");
 
+    // Basic empty field validation
     if (!formData.email || !formData.password) {
       setError("Please fill in all fields.");
       return;
     }
 
-    if (!validateEmail(formData.email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    const validEmail = "admin@reporta.ai";
-    const validPassword = "password@123";
-
-    if (formData.email !== validEmail || formData.password !== validPassword) {
-      setError("Invalid email or password.");
-      return;
-    }
-
+    // Start loading state
     setLoading(true);
 
-    setTimeout(() => {
-      navigate("/login");
+    try {
+      // Send login request to backend
+      const response = await fetch("http://127.0.0.1:8000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
 
-      if (formData.remember) {
-        localStorage.setItem("reporta_user", JSON.stringify(formData));
+        // Backend expects username + password
+        body: JSON.stringify({
+          username: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      // Convert response to JSON
+      const data = await response.json();
+
+      // If backend rejects login
+      if (!response.ok) {
+        setError(data.detail || "Invalid email or password.");
+        return;
       }
 
-      navigate("/login");
-    }, 900);
+      // Save JWT token for protected backend API calls
+      localStorage.setItem("reporta_token", data.access_token);
+
+      // Optionally remember user email
+      if (formData.remember) {
+        localStorage.setItem("reporta_user", formData.email);
+      } else {
+        localStorage.removeItem("reporta_user");
+      }
+
+      // Redirect user after successful login
+      navigate("/dashboard");
+    } catch (error) {
+      // Backend/server connection error
+      setError("Could not connect to the backend server.");
+    } finally {
+      // Stop loading state
+      setLoading(false);
+    }
   }
 
   return (
@@ -103,6 +139,7 @@ function LoginPage() {
             Welcome Back
           </h2>
 
+          {/* Error message box */}
           {error && (
             <div className="mb-5 flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-600">
               <AlertCircle size={18} />
@@ -110,6 +147,7 @@ function LoginPage() {
             </div>
           )}
 
+          {/* Email field */}
           <div className="mb-6">
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               Email address
@@ -129,6 +167,7 @@ function LoginPage() {
             </div>
           </div>
 
+          {/* Password field */}
           <div className="mb-6">
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               Password
@@ -147,6 +186,7 @@ function LoginPage() {
                 className="h-full w-full border-none bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
               />
 
+              {/* Show/hide password button */}
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
@@ -156,6 +196,7 @@ function LoginPage() {
               </button>
             </div>
 
+            {/* Caps Lock warning */}
             {capsWarning && (
               <p className="mt-2 text-xs text-red-500">
                 Warning: Caps Lock is ON
@@ -163,6 +204,7 @@ function LoginPage() {
             )}
           </div>
 
+          {/* Remember me */}
           <div className="mb-7 flex items-center justify-between gap-4">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-emerald-600">
               <input
@@ -183,12 +225,14 @@ function LoginPage() {
             </button>
           </div>
 
+          {/* Login button */}
           <button
             type="submit"
             disabled={loading}
             className="flex h-[54px] w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-[15px] font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:opacity-60"
           >
             {loading ? "Signing in..." : "Sign in to Dashboard"}
+
             {!loading && <ArrowRight size={19} />}
           </button>
         </form>

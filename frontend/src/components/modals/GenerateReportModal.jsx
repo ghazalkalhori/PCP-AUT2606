@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react';
-import { Sparkles, X } from 'lucide-react';
-import { clsx } from 'clsx';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { Sparkles, X } from "lucide-react";
+import { clsx } from "clsx";
+import { useNavigate } from "react-router-dom";
 
-const labelClassName = 'text-xs text-gray-400 uppercase tracking-wide mb-1';
+const labelClassName = "text-xs text-gray-400 uppercase tracking-wide mb-1";
 
 const contentTypesByMode = {
-  match: ['Pre Match', 'Post Match', 'Round Summary'],
-  competition: ['Round Summary'],
+  match: ["Pre Match", "Post Match", "Round Summary"],
+  competition: ["Round Summary"],
 };
 
-const writingStyles = ['Professional', 'Casual', 'Analytical', 'Dramatic'];
+const writingStyles = ["Professional", "Casual", "Analytical", "Dramatic"];
 
 function OptionButton({ selected, label, onClick, className }) {
   return (
@@ -18,11 +18,11 @@ function OptionButton({ selected, label, onClick, className }) {
       type="button"
       onClick={onClick}
       className={clsx(
-        'rounded-lg text-sm font-medium transition-colors',
+        "rounded-lg text-sm font-medium transition-colors",
         selected
-          ? 'border-2 border-green-500 text-green-600'
-          : 'border border-gray-200 text-gray-500 hover:border-gray-300',
-        className
+          ? "border-2 border-green-500 text-green-600"
+          : "border border-gray-200 text-gray-500 hover:border-gray-300",
+        className,
       )}
     >
       {label}
@@ -33,12 +33,12 @@ function OptionButton({ selected, label, onClick, className }) {
 function GenerateReportModal({ isOpen, onClose, type, data }) {
   const navigate = useNavigate();
   const [contentType, setContentType] = useState(
-    type === 'competition' ? 'Round Summary' : 'Pre Match'
+    type === "competition" ? "Round Summary" : "Pre Match",
   );
-  const [writingStyle, setWritingStyle] = useState('Professional');
+  const [writingStyle, setWritingStyle] = useState("Professional");
 
   useEffect(() => {
-    setContentType(type === 'competition' ? 'Round Summary' : 'Pre Match');
+    setContentType(type === "competition" ? "Round Summary" : "Pre Match");
   }, [type, isOpen]);
 
   useEffect(() => {
@@ -47,17 +47,17 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
     }
 
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         onClose();
       }
     };
 
-    document.body.classList.add('overflow-hidden');
-    window.addEventListener('keydown', onKeyDown);
+    document.body.classList.add("overflow-hidden");
+    window.addEventListener("keydown", onKeyDown);
 
     return () => {
-      document.body.classList.remove('overflow-hidden');
-      window.removeEventListener('keydown', onKeyDown);
+      document.body.classList.remove("overflow-hidden");
+      window.removeEventListener("keydown", onKeyDown);
     };
   }, [isOpen, onClose]);
 
@@ -69,8 +69,10 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
 
   const handleGenerate = () => {
     // TODO: connect to FastAPI backend + LLM
-   onClose();
-    navigate('/report/result', { state: { data, contentType, writingStyle, type } });
+    onClose();
+    navigate("/report/result", {
+      state: { data, contentType, writingStyle, type },
+    });
 
     console.log({ data, contentType, writingStyle });
   };
@@ -78,8 +80,8 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
   return (
     <div
       className={clsx(
-        'fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-200',
-        isOpen ? 'opacity-100' : 'opacity-0'
+        "fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-200",
+        isOpen ? "opacity-100" : "opacity-0",
       )}
       onClick={onClose}
       role="presentation"
@@ -97,8 +99,12 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
               <Sparkles size={18} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Generate AI Report</h2>
-              <p className="text-gray-500 text-sm">Configure and generate football content</p>
+              <h2 className="text-base font-semibold text-gray-900">
+                Generate AI Report
+              </h2>
+              <p className="text-gray-500 text-sm">
+                Configure and generate football content
+              </p>
             </div>
           </div>
           <button
@@ -114,7 +120,7 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
         <div>
           <div className="border border-gray-100 rounded-xl p-4 bg-gray-50 mb-6">
             <p className={labelClassName}>Source</p>
-            {type === 'match' ? (
+            {type === "match" ? (
               <>
                 <p className="text-gray-900 font-bold mt-2">
                   {data.homeTeam.name} vs {data.awayTeam.name}
@@ -146,7 +152,7 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
                 />
               ))}
             </div>
-            {type === 'competition' && (
+            {type === "competition" && (
               <p className="text-xs text-gray-400 mt-3">
                 Competition reports generate round summaries only
               </p>
@@ -180,8 +186,8 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
           </button>
 
           <p className="text-gray-400 text-xs text-center mt-4">
-            The AI will analyze the data and generate a report based on your selected style and content
-            type.
+            The AI will analyze the data and generate a report based on your
+            selected style and content type.
           </p>
         </div>
       </div>

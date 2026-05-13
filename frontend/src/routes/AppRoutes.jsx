@@ -1,18 +1,18 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import DashboardLayout from '../layouts/DashboardLayout.jsx';
-import ProtectedRoute from '../components/ProtectedRoute.jsx';
-import LoginPage from '../pages/LoginPage.jsx';
-import Dashboard from '../pages/Dashboard.jsx';
-import Matches from '../pages/Matches.jsx';
-import Leagues from '../pages/Leagues.jsx';
-import Reports from '../pages/Reports.jsx';
-import GenerationJobs from '../pages/GenerationJobs.jsx';
-import Competitions from '../pages/Competitions.jsx';
-import Jobs from '../pages/Jobs.jsx';
-import Users from '../pages/Users.jsx';
-import Settings from '../pages/Settings.jsx';
-import GeneratedReport from '../pages/GeneratedReport.jsx';
-import NotFound from '../pages/NotFound.jsx';
+import { Navigate, Route, Routes } from "react-router-dom";
+import DashboardLayout from "../layouts/DashboardLayout.jsx";
+import ProtectedRoute from "../components/ProtectedRoute.jsx";
+import LoginPage from "../pages/LoginPage.jsx";
+import Dashboard from "../pages/Dashboard.jsx";
+import Matches from "../pages/Matches.jsx";
+import Leagues from "../pages/Leagues.jsx";
+import Reports from "../pages/Reports.jsx";
+import GenerationJobs from "../pages/GenerationJobs.jsx";
+import Competitions from "../pages/Competitions.jsx";
+import Jobs from "../pages/Jobs.jsx";
+import Users from "../pages/Users.jsx";
+import Settings from "../pages/Settings.jsx";
+import GeneratedReport from "../pages/GeneratedReport.jsx";
+import NotFound from "../pages/NotFound.jsx";
 
 function AppRoutes() {
   return (

@@ -1,11 +1,8 @@
-import { useState } from 'react';
-import { Search, Sparkles } from 'lucide-react';
-import { clsx } from 'clsx';
-import StatusBadge from '../components/StatusBadge.jsx';
-import GenerateReportModal from '../components/modals/GenerateReportModal.jsx';
-import { getMatches } from '../services/matchesService.js';
-
-const matches = getMatches();
+import { useState } from "react";
+import { Search, Sparkles } from "lucide-react";
+import { clsx } from "clsx";
+import StatusBadge from "../components/StatusBadge.jsx";
+import GenerateReportModal from "../components/modals/GenerateReportModal.jsx";
 
 /** Rounded-square team avatar with abbreviation */
 function TeamBadge({ team }) {
@@ -29,17 +26,8 @@ function formatMatch(match) {
     ground: match.ground,
     status: match.status,
 
-    homeTeam: makeTeamInfo(
-      match.home_team,
-      'Home Team',
-      '#10b981'
-    ),
-
-    awayTeam: makeTeamInfo(
-      match.away_team,
-      'Away Team',
-      '#6366f1'
-    ),
+    homeTeam: makeTeamInfo(match.home_team, "Home Team", "#10b981"),
+    awayTeam: makeTeamInfo(match.away_team, "Away Team", "#6366f1"),
 
     score: null,
     raw: match,
@@ -50,14 +38,14 @@ const API_TOKEN = import.meta.env.VITE_DRIBL_API_TOKEN;
 
 export async function getMatchList() {
   const url =
-    'https://open.dribl.com/api/fixtures?start_date=2026-04-07T00:00:00&end_date=2026-05-07T23:59:59&team_name=DFA';
+    "https://open.dribl.com/api/fixtures?start_date=2026-04-07T00:00:00&end_date=2026-05-07T23:59:59&team_name=DFA";
 
   try {
     const response = await fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: {
         Authorization: `Bearer ${API_TOKEN}`,
-        Accept: 'application/json',
+        Accept: "application/json",
       },
     });
 
@@ -89,7 +77,7 @@ export async function getMatchList() {
 
     return matches;
   } catch (error) {
-    console.error('Failed to fetch match list:', error);
+    console.error("Failed to fetch match list:", error);
     return [];
   }
 }
@@ -99,11 +87,11 @@ function makeTeamInfo(teamName, fallback, color) {
     name: teamName || fallback,
     abbreviation: teamName
       ? teamName
-          .split(' ')
+          .split(" ")
           .filter(Boolean)
           .slice(0, 2)
           .map((word) => word[0])
-          .join('')
+          .join("")
           .toUpperCase()
       : fallback.slice(0, 3).toUpperCase(),
     color,
@@ -118,7 +106,9 @@ function MatchCell({ home, away }) {
         <TeamBadge team={home} />
         <span className="text-gray-900 text-sm font-medium">{home.name}</span>
       </div>
-      <span className="text-gray-400 text-[11px] italic w-4 text-center">vs</span>
+      <span className="text-gray-400 text-[11px] italic w-4 text-center">
+        vs
+      </span>
       <div className="flex items-center gap-2 w-[120px]">
         <TeamBadge team={away} />
         <span className="text-gray-900 text-sm font-medium">{away.name}</span>
@@ -172,7 +162,7 @@ function GenerateButton({ onClick }) {
   );
 }
 
-const columns = ['MATCH', 'COMPETITION', 'DATE', 'STATUS', 'SCORE', 'ACTIONS'];
+const columns = ["MATCH", "COMPETITION", "DATE", "STATUS", "SCORE", "ACTIONS"];
 
 function Matches() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -217,7 +207,7 @@ function Matches() {
                   key={col}
                   className={clsx(
                     "px-4 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider",
-                    col === 'SCORE' && "hidden lg:table-cell"
+                    col === "SCORE" && "hidden lg:table-cell",
                   )}
                 >
                   {col}
@@ -259,8 +249,10 @@ function Matches() {
 
                 {/* ACTIONS */}
                 <td className="px-4 py-4">
-                  {match.status !== 'live' && (
-                    <GenerateButton onClick={() => handleGenerateClick(match)} />
+                  {match.status !== "live" && (
+                    <GenerateButton
+                      onClick={() => handleGenerateClick(match)}
+                    />
                   )}
                 </td>
               </tr>
@@ -272,13 +264,18 @@ function Matches() {
       {/* Mobile Card List */}
       <div className="md:hidden space-y-4">
         {matches.map((match) => (
-          <div key={match.id} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-4">
+          <div
+            key={match.id}
+            className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col gap-4"
+          >
             <div className="flex items-center justify-between">
               <MatchCell home={match.homeTeam} away={match.awayTeam} />
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
-                <span className="text-gray-400 text-xs block mb-1">Competition</span>
+                <span className="text-gray-400 text-xs block mb-1">
+                  Competition
+                </span>
                 <CompetitionCell name={match.competition} />
               </div>
               <div>
@@ -294,7 +291,7 @@ function Matches() {
                 <ScoreCell score={match.score} />
               </div>
             </div>
-            {match.status !== 'live' && (
+            {match.status !== "live" && (
               <div className="pt-2 border-t border-gray-50">
                 <GenerateButton onClick={() => handleGenerateClick(match)} />
               </div>
