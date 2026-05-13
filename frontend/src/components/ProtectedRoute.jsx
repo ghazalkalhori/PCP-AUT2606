@@ -2,14 +2,12 @@
 // If no JWT token exists, user is redirected to login page.
 
 import { Navigate, Outlet } from "react-router-dom";
+import { isAuthenticated } from "../utils/auth.js";
 
 function ProtectedRoute() {
-  // Read JWT token saved after login
-  const token = localStorage.getItem("reporta_token");
-
   // If token does not exist,
   // redirect user back to login page
-  if (!token) {
+  if (!isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
 

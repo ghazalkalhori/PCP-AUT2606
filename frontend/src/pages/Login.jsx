@@ -1,10 +1,11 @@
-// LoginPage handles user authentication.
+// Login handles user authentication.
 // It sends login credentials to the FastAPI backend,
 // receives a JWT token, stores it in localStorage,
 // and redirects the user to the dashboard after login.
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { storeAuthSession } from "../utils/auth.js";
 import {
   ArrowRight,
   Lock,
@@ -15,7 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-function LoginPage() {
+function Login() {
   // Used for page navigation after successful login
   const navigate = useNavigate();
 
@@ -93,15 +94,8 @@ function LoginPage() {
         return;
       }
 
-      // Save JWT token for protected backend API calls
-      localStorage.setItem("reporta_token", data.access_token);
-
-      // Optionally remember user email
-      if (formData.remember) {
-        localStorage.setItem("reporta_user", formData.email);
-      } else {
-        localStorage.removeItem("reporta_user");
-      }
+      // Save JWT token and remembered user data
+      storeAuthSession(data.access_token, formData.email, formData.remember);
 
       // Redirect user after successful login
       navigate("/dashboard");
@@ -241,4 +235,4 @@ function LoginPage() {
   );
 }
 
-export default LoginPage;
+export default Login;

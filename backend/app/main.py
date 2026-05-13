@@ -1,18 +1,19 @@
-from datetime import datetime, timedelta
 import os
-from dotenv import load_dotenv
+from datetime import datetime, timedelta
+from typing import Optional
 
-from fastapi import FastAPI, Depends, HTTPException
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app import models
 from app.db import Base, engine, SessionLocal
-from app.services.dribl import get_fixture
+from app.services.dribl import get_fixture, get_fixtures
 
 
 Base.metadata.create_all(bind=engine)
@@ -92,7 +93,9 @@ def health():
 
 @app.post("/auth/login")
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.username == request.username).first()
+    user = (
+        db.query(models.User).filter(models.User.username == request.username).first()
+    )
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -274,3 +277,52 @@ def delete_report(
     db.commit()
 
     return {"message": "Deleted"}
+
+
+# Dashboard summary endpoint.
+# Frontend uses this to show dashboard cards and recent reports.
+@app.get("/dashboard")
+def get_dashboard(
+    db: Session = Depends(get_db),
+    user: str = Depends(get_current_user),
+):
+    # Get all saved reports from database
+    reports = db.query(models.Report).all()
+
+    # Count reports by status
+    draft_count = len([r for r in reports if r.status == "draft"])
+    review_count = len([r for r in reports if r.status == "review"])
+    approved_count = len([r for r in reports if r.status == "approved"])
+    published_count = len([r for r in reports if r.status == "published"])
+
+    # Return simple dashboard data
+    return {
+        "stats": {
+            "matches": 0,
+            "jobs": len(reports),
+            "leagues": 0,
+            "content": len(reports),
+            "draft": draft_count,
+            "review": review_count,
+            "approved": approved_count,
+            "published": published_count,
+        },
+        "recent_reports": reports[-5:],
+    }
+
+
+# Get list of fixtures from Dribl.
+# Frontend calls this instead of calling Dribl directly.
+@app.get("/matches")
+def match_list(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: int = 1,
+    user: str = Depends(get_current_user),
+):
+    # Keep FastAPI as the single gateway to Dribl and accept simple query params.
+    return get_fixtures(
+        start_date=start_date,
+        end_date=end_date,
+        page=page,
+    )

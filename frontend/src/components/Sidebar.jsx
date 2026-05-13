@@ -1,20 +1,33 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { clsx } from "clsx";
+import { clearAuthSession, getStoredUserName } from "../utils/auth.js";
 
 const navItems = [
   { name: "Dashboard", path: "/dashboard" },
   { name: "Matches", path: "/matches" },
-  { name: "Competitions", path: "/competitions" },
+  { name: "Leagues", path: "/leagues" },
   { name: "Jobs", path: "/jobs" },
 ];
 
-const Sidebar = ({ isOpen }) => {
+const Sidebar = ({ isOpen = true, setIsOpen }) => {
+  const navigate = useNavigate();
+  const displayName = getStoredUserName();
+
+  function handleLogout() {
+    clearAuthSession();
+    navigate("/login", { replace: true });
+  }
+
+  function handleNavClick() {
+    setIsOpen?.(false);
+  }
+
   return (
     <aside
       className={clsx(
-        "fixed inset-y-0 left-0 z-30 w-[210px] bg-[#0f1117] flex flex-col justify-between py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-30 flex w-[210px] flex-col justify-between bg-slate-950 py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full",
       )}
     >
@@ -36,12 +49,13 @@ const Sidebar = ({ isOpen }) => {
             <NavLink
               key={item.name}
               to={item.path}
+              onClick={handleNavClick}
               className={({ isActive }) =>
                 clsx(
-                  "px-3 py-2 rounded-lg text-sm transition-colors",
+                  "rounded-xl px-3 py-2.5 text-sm transition-colors",
                   isActive
-                    ? "bg-white text-black font-medium"
-                    : "text-gray-400 hover:text-white hover:bg-white/10",
+                    ? "bg-white/95 text-slate-950 font-medium shadow-sm"
+                    : "text-slate-400 hover:bg-white/8 hover:text-white",
                 )
               }
             >
@@ -50,18 +64,19 @@ const Sidebar = ({ isOpen }) => {
           ))}
         </nav>
       </div>
-      <div className="px-6 border-t border-white/10 pt-4 mt-auto flex items-center gap-3">
+      <div className="mt-auto flex items-center gap-3 border-t border-white/10 px-6 pt-4">
         <div className="w-8 h-8 rounded-full bg-[#22c55e] flex items-center justify-center text-white font-bold text-sm shrink-0">
           C
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-medium text-sm leading-tight truncate">
-            Chris
+            {displayName}
           </p>
           <p className="text-gray-400 text-xs truncate">Administrator</p>
         </div>
         <button
-          onClick={logout}
+          type="button"
+          onClick={handleLogout}
           className="text-gray-400 hover:text-white transition-colors"
         >
           <LogOut size={16} />
