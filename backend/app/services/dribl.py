@@ -91,3 +91,99 @@ def get_fixtures(
         )
 
     return response.json()
+
+
+# Build a leagues list from fixture data.
+# Dribl does not provide a separate leagues endpoint, so we derive leagues from fixtures.
+def get_leagues_from_fixtures(
+    tenant_name: str = "FWW",
+    start_date: str = "2020-01-01",
+    end_date: Optional[str] = None,
+    status: str = "all",
+):
+    today = date.today()
+    end_day = _parse_date_string(end_date, "end_date") if end_date else today
+
+    fixtures_response = get_fixtures(
+        tenant_name=tenant_name,
+        start_date=start_date,
+        end_date=end_day.isoformat(),
+        page=1,
+    )
+
+    fixtures = fixtures_response.get("data", [])
+    leagues = {}
+
+    for fixture in fixtures:
+        attributes = fixture.get("attributes", {})
+
+        league_id = (
+            attributes.get("league_id")
+            or attributes.get("league_name")
+            or attributes.get("competition_name")
+            or "unknown"
+        )
+
+        league_name = (
+            attributes.get("league_name")
+            or attributes.get("competition_name")
+            or "Unknown League"
+        )
+
+        fixture_date = attributes.get("local_start_date") or attributes.get("start_date")
+        season_name = attributes.get("season_name") or "Current Season"
+
+        if league_id not in leagues:
+            leagues[league_id] = {
+                "id": str(league_id),
+                "name": league_name,
+                "competition": attributes.get("competition_name") or league_name,
+                "season": season_name,
+                "tenant": attributes.get("tenant_name") or tenant_name,
+                "matches": 0,
+                "first_match_date": fixture_date,
+                "last_match_date": fixture_date,
+                "status": "Past",
+            }
+
+        league = leagues[league_id]
+        league["matches"] += 1
+
+        if fixture_date:
+            if not league["first_match_date"] or fixture_date < league["first_match_date"]:
+                league["first_match_date"] = fixture_date
+
+            if not league["last_match_date"] or fixture_date > league["last_match_date"]:
+                league["last_match_date"] = fixture_date
+
+    current_year = today.year
+
+    for league in leagues.values():
+        season = league.get("season", "")
+
+        if str(current_year) in season:
+            league["status"] = "Active"
+
+        elif any(
+            str(year) in season
+            for year in range(current_year + 1, current_year + 5)
+        ):
+            league["status"] = "Upcoming"
+
+        else:
+            league["status"] = "Past"
+
+    league_list = list(leagues.values())
+
+    if status != "all":
+        normalized_status = status.lower()
+        league_list = [
+            league
+            for league in league_list
+                if league.get("status", "").lower() == normalized_status
+        ]
+
+    return {
+        "data": league_list,
+        "total": len(league_list),
+    }

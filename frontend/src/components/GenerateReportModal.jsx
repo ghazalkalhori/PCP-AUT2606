@@ -8,6 +8,7 @@ const labelClassName = "text-xs text-gray-400 uppercase tracking-wide mb-1";
 const contentTypesByMode = {
   match: ["Pre Match", "Post Match", "Round Summary"],
   competition: ["Round Summary"],
+  league: ["Round Summary"],
 };
 
 const writingStyles = ["Professional", "Casual", "Analytical", "Dramatic"];
@@ -33,23 +34,25 @@ function OptionButton({ selected, label, onClick, className }) {
 function GenerateReportModal({ isOpen, onClose, type, data }) {
   const navigate = useNavigate();
   const [contentType, setContentType] = useState(
-    type === "competition" ? "Round Summary" : "Pre Match",
+    type === "competition" || type === "league"
+      ? "Round Summary"
+      : "Pre Match",
   );
   const [writingStyle, setWritingStyle] = useState("Professional");
 
   useEffect(() => {
-    setContentType(type === "competition" ? "Round Summary" : "Pre Match");
+    setContentType(
+      type === "competition" || type === "league"
+        ? "Round Summary"
+        : "Pre Match",
+    );
   }, [type, isOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
+    if (!isOpen) return undefined;
 
     const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
     };
 
     document.body.classList.add("overflow-hidden");
@@ -61,56 +64,51 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen || !data) {
-    return null;
-  }
+  if (!isOpen || !data) return null;
 
   const contentTypes = contentTypesByMode[type] || contentTypesByMode.match;
 
   const handleGenerate = () => {
-    // TODO: connect to FastAPI backend + LLM
     onClose();
+
     navigate("/report/result", {
       state: { data, contentType, writingStyle, type },
     });
-
-    console.log({ data, contentType, writingStyle });
   };
 
   return (
     <div
-      className={clsx(
-        "fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-200",
-        isOpen ? "opacity-100" : "opacity-0",
-      )}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full mx-4 md:max-w-2xl max-h-[90vh] overflow-y-auto p-8"
+        className="mx-4 max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl md:max-w-2xl"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label="Generate AI Report"
       >
-        <div className="flex items-start justify-between border-b border-gray-100 pb-6 mb-6">
+        <div className="mb-6 flex items-start justify-between border-b border-gray-100 pb-6">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-green-600">
               <Sparkles size={18} />
             </div>
+
             <div>
               <h2 className="text-base font-semibold text-gray-900">
                 Generate AI Report
               </h2>
-              <p className="text-gray-500 text-sm">
+              <p className="text-sm text-gray-500">
                 Configure and generate football content
               </p>
             </div>
           </div>
+
           <button
             type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-lg hover:bg-gray-100"
+            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
             aria-label="Close modal"
           >
             <X size={20} />
@@ -118,22 +116,30 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
         </div>
 
         <div>
-          <div className="border border-gray-100 rounded-xl p-4 bg-gray-50 mb-6">
+          <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
             <p className={labelClassName}>Source</p>
+
             {type === "match" ? (
               <>
-                <p className="text-gray-900 font-bold mt-2">
+                <p className="mt-2 font-bold text-gray-900">
                   {data.homeTeam.name} vs {data.awayTeam.name}
                 </p>
-                <p className="text-gray-500 text-sm mt-1">
+                <p className="mt-1 text-sm text-gray-500">
                   {data.competition} • {data.date} at {data.time}
+                </p>
+              </>
+            ) : type === "league" ? (
+              <>
+                <p className="mt-2 font-bold text-gray-900">{data.name}</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {data.season} • {data.matches} matches • {data.status}
                 </p>
               </>
             ) : (
               <>
-                <p className="text-gray-900 font-bold mt-2">{data.name}</p>
-                <p className="text-gray-500 text-sm mt-1">
-                  {data.season} • Round {data.progress.current}
+                <p className="mt-2 font-bold text-gray-900">{data.name}</p>
+                <p className="mt-1 text-sm text-gray-500">
+                  {data.season} • Round {data.progress?.current || "N/A"}
                 </p>
               </>
             )}
@@ -141,51 +147,54 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
 
           <div className="mb-6">
             <p className={labelClassName}>Content Type</p>
-            <div className="flex flex-wrap gap-3 mt-3">
+
+            <div className="mt-3 flex flex-wrap gap-3">
               {contentTypes.map((option) => (
                 <OptionButton
                   key={option}
                   label={option}
                   selected={contentType === option}
                   onClick={() => setContentType(option)}
-                  className="px-6 py-3 w-full md:w-auto"
+                  className="w-full px-6 py-3 md:w-auto"
                 />
               ))}
             </div>
-            {type === "competition" && (
-              <p className="text-xs text-gray-400 mt-3">
-                Competition reports generate round summaries only
+
+            {(type === "competition" || type === "league") && (
+              <p className="mt-3 text-xs text-gray-400">
+                League reports generate round summaries only
               </p>
             )}
           </div>
 
           <div className="mb-6">
             <p className={labelClassName}>Writing Style</p>
-            <div className="flex flex-wrap gap-3 mt-3">
+
+            <div className="mt-3 flex flex-wrap gap-3">
               {writingStyles.map((style) => (
                 <OptionButton
                   key={style}
                   label={style}
                   selected={writingStyle === style}
                   onClick={() => setWritingStyle(style)}
-                  className="px-5 py-3 w-full md:w-auto"
+                  className="w-full px-5 py-3 md:w-auto"
                 />
               ))}
             </div>
           </div>
 
-          <div className="border-t border-gray-100 mb-6"></div>
+          <div className="mb-6 border-t border-gray-100" />
 
           <button
             type="button"
             onClick={handleGenerate}
-            className="w-full inline-flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white text-base font-semibold rounded-xl py-4 transition-colors"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-4 text-base font-semibold text-white transition-colors hover:bg-green-600"
           >
             <Sparkles size={18} />
             Generate Report
           </button>
 
-          <p className="text-gray-400 text-xs text-center mt-4">
+          <p className="mt-4 text-center text-xs text-gray-400">
             The AI will analyze the data and generate a report based on your
             selected style and content type.
           </p>

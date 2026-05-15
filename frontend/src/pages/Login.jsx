@@ -14,6 +14,7 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 
 function Login() {
@@ -109,27 +110,36 @@ function Login() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f7f7f5] flex items-center justify-center px-4 py-10">
-      <section className="w-full max-w-[560px]">
-        <div className="text-center mb-9">
-          <div className="mx-auto mb-7 flex h-[74px] w-[74px] items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-500 shadow-sm">
-            <Zap size={42} strokeWidth={2.5} />
+    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#ecfdf5_0,#f8fafc_38%,#f1f5f9_100%)] flex items-center justify-center px-4 py-6">
+      {/* Soft loading overlay gives login a smoother transition */}
+      {loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/55 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-white px-5 py-4 text-sm font-semibold text-slate-700 shadow-2xl">
+            <Loader2 size={20} className="animate-spin text-emerald-500" />
+            Signing you in...
+          </div>
+        </div>
+      )}
+      <section className="w-full max-w-[480px]">
+        <div className="text-center mb-6">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-500 shadow-[0_18px_45px_rgba(16,185,129,0.18)]">
+            <Zap size={34} strokeWidth={2.5} />
           </div>
 
-          <h1 className="text-[42px] font-black tracking-[-1.5px] text-slate-950">
+          <h1 className="text-[36px] font-black tracking-[-1.4px] text-slate-950">
             REPORTA AI
           </h1>
 
-          <p className="mt-5 text-[15px] text-slate-500">
+          <p className="mt-3 text-[14px] text-slate-500">
             AI-powered football content generation
           </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-[20px] bg-white px-10 py-9 shadow-[0_30px_80px_rgba(15,23,42,0.08)]"
+          className="rounded-[26px] border border-slate-200/80 bg-white/95 px-8 py-7 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur"
         >
-          <h2 className="mb-8 text-center text-[26px] font-bold text-slate-950">
+          <h2 className="mb-6 text-center text-[24px] font-bold text-slate-950">
             Welcome Back
           </h2>
 
@@ -142,12 +152,12 @@ function Login() {
           )}
 
           {/* Email field */}
-          <div className="mb-6">
+          <div className="mb-5">
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               Email address
             </label>
 
-            <div className="flex h-[54px] items-center gap-3 rounded-xl border border-slate-300 bg-white px-4 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-100">
+            <div className="flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-4 shadow-sm transition focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-100">
               <Mail size={21} className="text-slate-400" />
 
               <input
@@ -162,12 +172,12 @@ function Login() {
           </div>
 
           {/* Password field */}
-          <div className="mb-6">
+          <div className="mb-5">
             <label className="mb-2 block text-sm font-semibold text-slate-700">
               Password
             </label>
 
-            <div className="flex h-[54px] items-center gap-3 rounded-xl border border-slate-300 bg-white px-4 shadow-sm transition focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-100">
+            <div className="flex h-12 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-4 shadow-sm transition focus-within:border-emerald-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-emerald-100">
               <Lock size={21} className="text-slate-400" />
 
               <input
@@ -199,7 +209,7 @@ function Login() {
           </div>
 
           {/* Remember me */}
-          <div className="mb-7 flex items-center justify-between gap-4">
+          <div className="mb-6 flex items-center justify-end gap-4">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-emerald-600">
               <input
                 type="checkbox"
@@ -210,25 +220,30 @@ function Login() {
               />
               Remember me
             </label>
-
-            <button
-              type="button"
-              className="text-sm font-semibold text-emerald-600 hover:text-emerald-700"
-            >
-              Forgot your password?
-            </button>
           </div>
 
           {/* Login button */}
           <button
             type="submit"
             disabled={loading}
-            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-[15px] font-bold text-white shadow-lg shadow-slate-900/20 transition hover:bg-slate-800 disabled:opacity-60"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-[15px] font-bold text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl disabled:translate-y-0 disabled:cursor-wait disabled:opacity-75"
           >
-            {loading ? "Signing in..." : "Sign in to Dashboard"}
-
-            {!loading && <ArrowRight size={19} />}
+            {loading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Checking credentials...
+              </>
+            ) : (
+              <>
+                Sign in to Dashboard
+                <ArrowRight size={19} />
+              </>
+            )}
           </button>
+
+          <p className="mt-5 text-center text-xs text-slate-400">
+            Secure admin access for football content generation
+          </p>
         </form>
       </section>
     </main>

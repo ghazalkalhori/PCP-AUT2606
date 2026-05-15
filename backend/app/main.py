@@ -14,7 +14,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app import models
 from app.db import Base, engine, SessionLocal
 from app.services.dribl import get_fixture, get_fixtures
-
+from app.services.dribl import get_fixture, get_fixtures, get_leagues_from_fixtures
 
 Base.metadata.create_all(bind=engine)
 
@@ -325,4 +325,21 @@ def match_list(
         start_date=start_date,
         end_date=end_date,
         page=page,
+    )
+
+
+# Get unique leagues from fixture data
+@app.get("/leagues")
+def league_list(
+    tenant_name: str = "FWW",
+    start_date: str = "2020-01-01",
+    end_date: Optional[str] = None,
+    status: str = "all",
+    user: str = Depends(get_current_user),
+):
+    return get_leagues_from_fixtures(
+        tenant_name=tenant_name,
+        start_date=start_date,
+        end_date=end_date,
+        status=status,
     )
