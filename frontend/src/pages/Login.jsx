@@ -120,7 +120,7 @@ function Login() {
           </div>
         </div>
       )}
-      <section className="w-full max-w-[480px]">
+      <section className="w-full max-w-120">
         <div className="text-center mb-6">
           <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-500 shadow-[0_18px_45px_rgba(16,185,129,0.18)]">
             <Zap size={34} strokeWidth={2.5} />

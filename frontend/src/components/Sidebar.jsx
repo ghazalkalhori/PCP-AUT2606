@@ -27,7 +27,7 @@ const Sidebar = ({ isOpen = true, setIsOpen }) => {
   return (
     <aside
       className={clsx(
-        "fixed inset-y-0 left-0 z-30 flex w-[210px] flex-col justify-between bg-slate-950 py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-30 flex w-52.5 flex-col justify-between bg-slate-950 py-6 transition-transform duration-300 ease-in-out lg:static lg:translate-x-0",
         isOpen ? "translate-x-0" : "-translate-x-full",
       )}
     >

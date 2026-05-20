@@ -877,7 +877,7 @@ function Matches() {
           {/* Filters and actions are grouped separately to keep the toolbar clean */}
           <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 xl:flex-row xl:items-end xl:justify-between">
             <div className="flex flex-wrap items-end gap-2">
-              <label className="flex min-w-[132px] flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <label className="flex min-w-33 flex-col gap-1 text-[11px] font-medium text-slate-500">
                 <span>Start date</span>
                 <input
                   type="date"
@@ -886,7 +886,7 @@ function Matches() {
                   className={controlClassName}
                 />
               </label>
-              <label className="flex min-w-[132px] flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <label className="flex min-w-33 flex-col gap-1 text-[11px] font-medium text-slate-500">
                 <span>End date</span>
                 <input
                   type="date"
@@ -895,7 +895,7 @@ function Matches() {
                   className={controlClassName}
                 />
               </label>
-              <label className="flex min-w-[140px] flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <label className="flex min-w-35 flex-col gap-1 text-[11px] font-medium text-slate-500">
                 <span>League</span>
                 <select
                   value={selectedLeague}
@@ -912,7 +912,7 @@ function Matches() {
                   ))}
                 </select>
               </label>
-              <label className="flex min-w-[140px] flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <label className="flex min-w-35 flex-col gap-1 text-[11px] font-medium text-slate-500">
                 <span>Status</span>
                 <select
                   value={selectedStatus}
@@ -926,7 +926,7 @@ function Matches() {
                   ))}
                 </select>
               </label>
-              <label className="flex min-w-[150px] flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <label className="flex min-w-37.5 flex-col gap-1 text-[11px] font-medium text-slate-500">
                 <span>Sort</span>
                 <select
                   value={sortValue}
@@ -985,7 +985,7 @@ function Matches() {
         <>
           <div className="hidden rounded-3xl border border-slate-200 bg-white shadow-sm xl:block">
             <div className="overflow-x-auto rounded-3xl">
-              <table className="min-w-[860px] w-full table-fixed text-left">
+              <table className="min-w-215 w-full table-fixed text-left">
                 <colgroup>
                   {columns.map((column) => (
                     <col key={column.label} className={column.width} />
@@ -1187,7 +1187,7 @@ function Matches() {
 
         <aside
           className={clsx(
-            "absolute right-0 top-0 h-full w-full border-l border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-out sm:w-[480px] lg:w-[520px]",
+            "absolute right-0 top-0 h-full w-full border-l border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-out sm:w-120 lg:w-130",
             drawerOpen ? "translate-x-0" : "translate-x-full",
           )}
           role="dialog"

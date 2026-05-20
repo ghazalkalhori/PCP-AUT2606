@@ -213,7 +213,7 @@ function GeneratedReport() {
           </div>
         </div>
 
-        <div className="w-full shrink-0 space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm lg:w-[260px]">
+        <div className="w-full shrink-0 space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm lg:w-65">
           <h3 className="text-sm font-bold text-gray-900">Content Details</h3>
 
           <div className="space-y-3">
