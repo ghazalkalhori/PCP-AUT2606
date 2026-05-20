@@ -1,194 +1,284 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCw, Bookmark, CheckCircle2 } from "lucide-react";
+import {
+  ArrowLeft,
+  RefreshCw,
+  Bookmark,
+  CheckCircle2,
+  Copy,
+  Download,
+} from "lucide-react";
 import { clsx } from "clsx";
-
-const DUMMY_REPORT = {
-  jobId: "JOB-12345",
-  title:
-    "Arsenal's Clinical Display Overcomes Stubborn Chelsea in North London Derby",
-  intro:
-    "Arsenal secured a crucial 2-1 victory over Chelsea at the Emirates Stadium, with goals from Martin Ødegaard and Bukayo Saka sealing all three points.",
-  body: [
-    {
-      type: "paragraph",
-      text: "The Emirates Stadium witnessed a pulsating encounter as Arsenal edged past Chelsea 2-1 in a match that showcased the Gunners' attacking prowess.",
-    },
-    { type: "heading", text: "First Half Dominance" },
-    {
-      type: "paragraph",
-      text: "Arsenal came out pressing high and forcing Chelsea into early mistakes. The opening goal came in the 23rd minute from Ødegaard's perfectly weighted through ball to Saka.",
-    },
-    { type: "heading", text: "Chelsea Fight Back" },
-    {
-      type: "paragraph",
-      text: "Chelsea pulled level through Nicolas Jackson's header from a corner but were caught on the counter as Saka netted his second to seal the win.",
-    },
-    { type: "heading", text: "Key Takeaways" },
-    {
-      type: "paragraph",
-      text: "Arsenal created 14 chances across the 90 minutes. Saka's performance was exceptional — a constant threat and the decisive contributor on the night.",
-    },
-  ],
-};
 
 function GeneratedReport() {
   const location = useLocation();
   const navigate = useNavigate();
+
   const [approved, setApproved] = useState(false);
-  const { data, contentType, writingStyle, type } = location.state || {};
+  const [copied, setCopied] = useState(false);
+
+  const { data, contentType, writingStyle, type, generatedReport, model } =
+    location.state || {};
+
+  if (!generatedReport) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f5f6fa]">
+        <div className="rounded-xl bg-white p-8 shadow-sm">
+          <p className="mb-4 text-gray-600">No generated report found.</p>
+
+          <button
+            onClick={() => navigate("/jobs")}
+            className="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+          >
+            Back to Jobs
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const matchTitle =
     type === "match" && data
-      ? `${data.homeTeam.name} vs ${data.awayTeam.name}`
-      : data?.name || "Barcelona vs Real Madrid";
+      ? `${data.homeTeam?.name} vs ${data.awayTeam?.name}`
+      : data?.name || "League Summary";
 
   const competition =
-    type === "match" ? data?.competition : data?.name || "La Liga";
+    type === "match" ? data?.competition : data?.name || "Football League";
+
   const matchDate =
     type === "match" && data
       ? `${data.date} at ${data.time}`
-      : "9 Apr 2025 at 21:00";
+      : "Current Season";
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedReport);
+
+      setCopied(true);
+
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to copy report:", error);
+    }
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([generatedReport], {
+      type: "text/plain;charset=utf-8",
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "generated-report.txt";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="min-h-full bg-[#f5f6fa]">
-      <div className="px-4 sm:px-6 pt-5 pb-2">
+      <div className="px-4 pb-2 pt-5 sm:px-6">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate("/jobs")}
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
         >
-          <ArrowLeft size={15} /> Back to Jobs
+          <ArrowLeft size={15} />
+          Back to Jobs
         </button>
       </div>
 
-      <div className="px-4 sm:px-6 pb-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            Generated Content
+      <div className="px-4 pb-4 sm:px-6">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-xl font-bold text-gray-900 sm:text-2xl">
+            Generated Report
           </h1>
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-700 border border-green-100">
-            <CheckCircle2 size={13} /> Completed
+
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-green-100 bg-green-50 px-3 py-1 text-sm font-semibold text-green-700">
+            <CheckCircle2 size={13} />
+            Completed
           </span>
         </div>
-        <p className="text-sm text-gray-400 mt-1">
-          Job ID: {DUMMY_REPORT.jobId}
+
+        <p className="mt-1 text-sm text-gray-400">
+          Generated using {model || "LLM"}
         </p>
       </div>
 
-      <div className="px-4 sm:px-6 pb-5">
-        <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex items-center gap-3 shadow-sm flex-wrap">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">
+      <div className="px-4 pb-5 sm:px-6">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-500">
               {matchTitle.slice(0, 2).toUpperCase()}
             </div>
-            <span className="text-sm font-medium text-gray-700 truncate">
+
+            <span className="truncate text-sm font-medium text-gray-700">
               {matchTitle}
             </span>
           </div>
+
           <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
-              <RefreshCw size={13} />{" "}
+            <button
+              onClick={handleCopy}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              <Copy size={13} />
+              <span className="hidden sm:inline">
+                {copied ? "Copied" : "Copy"}
+              </span>
+            </button>
+
+            <button
+              onClick={handleDownload}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              <Download size={13} />
+              <span className="hidden sm:inline">Download</span>
+            </button>
+
+            <button className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+              <RefreshCw size={13} />
               <span className="hidden sm:inline">Regenerate</span>
             </button>
-            <button className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
-              <Bookmark size={13} />{" "}
+
+            <button className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+              <Bookmark size={13} />
               <span className="hidden sm:inline">Save Draft</span>
             </button>
+
             <button
               onClick={() => setApproved(!approved)}
               className={clsx(
-                "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                 approved
-                  ? "bg-emerald-500 border-emerald-500 text-white"
+                  ? "border-emerald-500 bg-emerald-500 text-white"
                   : "border-emerald-500 text-emerald-600 hover:bg-emerald-50",
               )}
             >
-              <CheckCircle2 size={13} /> {approved ? "Approved" : "Approve"}
+              <CheckCircle2 size={13} />
+              {approved ? "Approved" : "Approve"}
             </button>
           </div>
         </div>
       </div>
 
-      <div className="px-4 sm:px-6 pb-10 flex flex-col lg:flex-row gap-5 items-start">
-        <div className="flex-1 bg-white border border-gray-100 rounded-xl shadow-sm p-5 sm:p-8 min-w-0">
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 leading-snug mb-4">
-            {DUMMY_REPORT.title}
-          </h2>
-          <p className="text-sm sm:text-base font-semibold text-gray-800 leading-relaxed mb-6 border-b border-gray-100 pb-6">
-            {DUMMY_REPORT.intro}
-          </p>
+      <div className="flex flex-col items-start gap-5 px-4 pb-10 sm:px-6 lg:flex-row">
+        <div className="min-w-0 flex-1 rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8">
           <div className="space-y-4">
-            {DUMMY_REPORT.body.map((block, i) =>
-              block.type === "heading" ? (
-                <h3
-                  key={i}
-                  className="text-base sm:text-lg font-bold text-gray-900 mt-6"
-                >
-                  {block.text}
-                </h3>
-              ) : (
+            {generatedReport.split("\n").map((line, index) => {
+              if (!line.trim()) {
+                return <br key={index} />;
+              }
+
+              if (line.startsWith("###")) {
+                return (
+                  <h2
+                    key={index}
+                    className="mt-6 text-2xl font-bold text-gray-900"
+                  >
+                    {line.replace("###", "").trim()}
+                  </h2>
+                );
+              }
+
+              if (line.startsWith("####")) {
+                return (
+                  <h3
+                    key={index}
+                    className="mt-5 text-lg font-bold text-gray-900"
+                  >
+                    {line.replace("####", "").trim()}
+                  </h3>
+                );
+              }
+
+              return (
                 <p
-                  key={i}
-                  className="text-gray-600 leading-relaxed text-sm sm:text-[15px]"
+                  key={index}
+                  className="text-sm leading-8 text-gray-700 sm:text-[15px]"
                 >
-                  {block.text}
+                  {line}
                 </p>
-              ),
-            )}
+              );
+            })}
           </div>
         </div>
 
-        <div className="w-full lg:w-[260px] shrink-0 bg-white border border-gray-100 rounded-xl shadow-sm p-5 space-y-4">
+        <div className="w-full shrink-0 space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm lg:w-[260px]">
           <h3 className="text-sm font-bold text-gray-900">Content Details</h3>
+
           <div className="space-y-3">
             <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                Season
-              </p>
-              <p className="text-sm text-gray-800">2025/2026</p>
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                 Competition
               </p>
+
               <p className="text-sm text-gray-800">{competition}</p>
             </div>
+
             <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                Match
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                Match / League
               </p>
+
               <p className="text-sm text-gray-800">{matchTitle}</p>
             </div>
+
             <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                 Date
               </p>
+
               <p className="text-sm text-gray-800">{matchDate}</p>
             </div>
           </div>
-          <div className="border-t border-gray-100 pt-4 space-y-3">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+
+          <div className="space-y-3 border-t border-gray-100 pt-4">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">
               AI Settings
             </p>
+
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Tone:</span>
+
               <span className="font-semibold text-gray-800">
                 {writingStyle || "Professional"}
               </span>
             </div>
+
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Type:</span>
+
               <span className="font-semibold text-gray-800">
                 {contentType || "Pre Match"}
               </span>
             </div>
+
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-500">Model:</span>
+
+              <span className="font-semibold text-gray-800">
+                {model || "LLM"}
+              </span>
+            </div>
           </div>
+
           <div className="border-t border-gray-100 pt-4">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
               Generated
             </p>
+
             <p className="text-sm text-gray-800">
-              {new Date().toISOString().replace("T", " ").slice(0, 19)}
+              {new Date().toLocaleString()}
             </p>
           </div>
         </div>

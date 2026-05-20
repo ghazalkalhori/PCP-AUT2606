@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { clsx } from "clsx";
-import GenerateReportModal from "../components/GenerateReportModal.jsx";
+import MatchReportModal from "../components/MatchReportModal";
 
 const columns = [
   { label: "Match", width: "w-[40%]" },
@@ -520,7 +520,20 @@ async function getMatchList({ startDate = "", endDate = "", page = 1 } = {}) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to fetch matches");
+    let backendMessage = "Failed to fetch matches";
+
+    try {
+      const errorData = await response.json();
+
+      backendMessage =
+        errorData?.detail ||
+        errorData?.message ||
+        `Backend returned ${response.status}`;
+    } catch {
+      backendMessage = `Backend returned ${response.status}`;
+    }
+
+    throw new Error(backendMessage);
   }
 
   const result = await response.json();
@@ -625,7 +638,22 @@ function Matches() {
         }
       }
     } catch (loadError) {
-      setError("Could not load matches.");
+      console.error("Failed loading matches:", loadError);
+
+      if (loadError instanceof Error) {
+        setError(loadError.message || "Could not load matches.");
+      } else {
+        setError("Could not load matches.");
+      }
+
+      setMatches([]);
+
+      setPagination({
+        currentPage: 1,
+        lastPage: 1,
+        perPage: 0,
+        total: 0,
+      });
     } finally {
       if (showPageLoader) {
         setLoading(false);
@@ -663,7 +691,7 @@ function Matches() {
     setCopiedFixtureId(false);
   }
 
-  // Modal opening keeps GenerateReportModal working with the selected fixture data.
+  // Modal opening keeps MatchReportModal working with the selected fixture data.
   function handleGenerateClick(event, match) {
     event.stopPropagation();
 
@@ -700,6 +728,8 @@ function Matches() {
   }
 
   function handleRefresh() {
+    setError("");
+
     loadMatches({
       page: pagination.currentPage,
       startDate: appliedStartDate,
@@ -1133,7 +1163,7 @@ function Matches() {
         </>
       )}
 
-      <GenerateReportModal
+      <MatchReportModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         type="match"

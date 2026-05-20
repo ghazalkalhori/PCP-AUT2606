@@ -1,9 +1,9 @@
-// Leagues page loads real league data from the backend and displays it in a clean admin table.
+// Leagues page loads current league data from the backend.
 
 import { useEffect, useMemo, useState } from "react";
 import { RefreshCw, Search, Sparkles, Trophy } from "lucide-react";
 import { clsx } from "clsx";
-import GenerateReportModal from "../components/GenerateReportModal.jsx";
+import LeagueSummaryModal from "../components/LeagueSummaryModal";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -99,13 +99,35 @@ function Leagues() {
       });
 
       if (!response.ok) {
-        throw new Error("Could not load leagues.");
+        let backendMessage = "Could not load leagues.";
+
+        try {
+          const errorData = await response.json();
+
+          backendMessage =
+            errorData?.detail ||
+            errorData?.message ||
+            `Backend returned ${response.status}`;
+        } catch {
+          backendMessage = `Backend returned ${response.status}`;
+        }
+
+        throw new Error(backendMessage);
       }
 
       const result = await response.json();
+
       setLeagues(Array.isArray(result.data) ? result.data : []);
     } catch (err) {
-      setError(err.message || "Could not load leagues.");
+      console.error("Failed loading leagues:", err);
+
+      if (err instanceof Error) {
+        setError(err.message || "Could not load leagues.");
+      } else {
+        setError("Could not load leagues.");
+      }
+
+      setLeagues([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -135,6 +157,7 @@ function Leagues() {
   }, [leagues, searchTerm]);
 
   function handleRefresh() {
+    setError("");
     setRefreshing(true);
     fetchLeagues();
   }
@@ -160,7 +183,7 @@ function Leagues() {
             Leagues
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Browse available football leagues from fixture data
+            Browse current football leagues available from Dribl fixtures
           </p>
         </div>
 
@@ -290,10 +313,9 @@ function Leagues() {
         </div>
       )}
 
-      <GenerateReportModal
+      <LeagueSummaryModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        type="league_summary"
         data={selectedLeague}
       />
     </div>

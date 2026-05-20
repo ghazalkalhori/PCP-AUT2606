@@ -5,12 +5,6 @@ import { useNavigate } from "react-router-dom";
 
 const labelClassName = "text-xs text-gray-400 uppercase tracking-wide mb-1";
 
-const contentTypesByMode = {
-  match: ["Pre Match", "Post Match", "Round Summary"],
-  competition: ["Round Summary"],
-  league: ["Round Summary"],
-};
-
 const writingStyles = ["Professional", "Casual", "Analytical", "Dramatic"];
 
 function OptionButton({ selected, label, onClick, className }) {
@@ -31,28 +25,24 @@ function OptionButton({ selected, label, onClick, className }) {
   );
 }
 
-function GenerateReportModal({ isOpen, onClose, type, data }) {
+function LeagueSummaryModal({ isOpen, onClose, data }) {
   const navigate = useNavigate();
-  const [contentType, setContentType] = useState(
-    type === "competition" || type === "league"
-      ? "Round Summary"
-      : "Pre Match",
-  );
+
   const [writingStyle, setWritingStyle] = useState("Professional");
 
   useEffect(() => {
-    setContentType(
-      type === "competition" || type === "league"
-        ? "Round Summary"
-        : "Pre Match",
-    );
-  }, [type, isOpen]);
+    if (!isOpen) return;
+
+    setWritingStyle("Professional");
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
 
     const onKeyDown = (event) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+      }
     };
 
     document.body.classList.add("overflow-hidden");
@@ -66,13 +56,16 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
 
   if (!isOpen || !data) return null;
 
-  const contentTypes = contentTypesByMode[type] || contentTypesByMode.match;
-
   const handleGenerate = () => {
     onClose();
 
     navigate("/report/result", {
-      state: { data, contentType, writingStyle, type },
+      state: {
+        type: "league",
+        data,
+        contentType: "League Summary",
+        writingStyle,
+      },
     });
   };
 
@@ -87,7 +80,7 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Generate AI Report"
+        aria-label="Generate League Summary"
       >
         <div className="mb-6 flex items-start justify-between border-b border-gray-100 pb-6">
           <div className="flex items-start gap-3">
@@ -97,10 +90,11 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
 
             <div>
               <h2 className="text-base font-semibold text-gray-900">
-                Generate AI Report
+                Generate League Summary
               </h2>
+
               <p className="text-sm text-gray-500">
-                Configure and generate football content
+                Generate an AI summary for this league
               </p>
             </div>
           </div>
@@ -117,54 +111,13 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
 
         <div>
           <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
-            <p className={labelClassName}>Source</p>
+            <p className={labelClassName}>League</p>
 
-            {type === "match" ? (
-              <>
-                <p className="mt-2 font-bold text-gray-900">
-                  {data.homeTeam.name} vs {data.awayTeam.name}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">
-                  {data.competition} • {data.date} at {data.time}
-                </p>
-              </>
-            ) : type === "league" ? (
-              <>
-                <p className="mt-2 font-bold text-gray-900">{data.name}</p>
-                <p className="mt-1 text-sm text-gray-500">
-                  {data.season} • {data.matches} matches • {data.status}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="mt-2 font-bold text-gray-900">{data.name}</p>
-                <p className="mt-1 text-sm text-gray-500">
-                  {data.season} • Round {data.progress?.current || "N/A"}
-                </p>
-              </>
-            )}
-          </div>
+            <p className="mt-2 font-bold text-gray-900">{data.name}</p>
 
-          <div className="mb-6">
-            <p className={labelClassName}>Content Type</p>
-
-            <div className="mt-3 flex flex-wrap gap-3">
-              {contentTypes.map((option) => (
-                <OptionButton
-                  key={option}
-                  label={option}
-                  selected={contentType === option}
-                  onClick={() => setContentType(option)}
-                  className="w-full px-6 py-3 md:w-auto"
-                />
-              ))}
-            </div>
-
-            {(type === "competition" || type === "league") && (
-              <p className="mt-3 text-xs text-gray-400">
-                League reports generate round summaries only
-              </p>
-            )}
+            <p className="mt-1 text-sm text-gray-500">
+              {data.season} • {data.matches} matches • {data.status}
+            </p>
           </div>
 
           <div className="mb-6">
@@ -191,12 +144,12 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-4 text-base font-semibold text-white transition-colors hover:bg-green-600"
           >
             <Sparkles size={18} />
-            Generate Report
+            Generate Summary
           </button>
 
           <p className="mt-4 text-center text-xs text-gray-400">
-            The AI will analyze the data and generate a report based on your
-            selected style and content type.
+            The AI will generate a league summary based on current league data
+            and statistics.
           </p>
         </div>
       </div>
@@ -204,4 +157,4 @@ function GenerateReportModal({ isOpen, onClose, type, data }) {
   );
 }
 
-export default GenerateReportModal;
+export default LeagueSummaryModal;

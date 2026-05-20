@@ -11,6 +11,7 @@ load_dotenv()
 BASE_URL = "https://open.dribl.com/api"
 TOKEN = os.getenv("DRIBL_TOKEN")
 
+
 headers = {
     "Authorization": f"Bearer {TOKEN}",
     "Accept": "*/*",
@@ -18,15 +19,24 @@ headers = {
 }
 
 
-def get_fixture(fixture_id: str):
-    url = f"{BASE_URL}/fixtures/{fixture_id}"
-
-    response = requests.get(
-        url,
-        headers=headers,
-        timeout=20,
-        impersonate="chrome",
-    )
+# Helper to send a request to Dribl and handle errors.
+def _request_dribl(url: str, params: Optional[dict] = None):
+    """
+    Send a request to Dribl and convert connection/API failures into clean HTTP errors.
+    """
+    try:
+        response = requests.get(
+            url,
+            headers=headers,
+            params=params,
+            timeout=20,
+            impersonate="chrome",
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=503,
+            detail="Could not connect to Dribl API. Please check VPN, internet, or Dribl availability.",
+        ) from error
 
     if response.status_code != 200:
         raise HTTPException(
@@ -35,6 +45,11 @@ def get_fixture(fixture_id: str):
         )
 
     return response.json()
+
+
+def get_fixture(fixture_id: str):
+    url = f"{BASE_URL}/fixtures/{fixture_id}"
+    return _request_dribl(url)
 
 
 def _parse_date_string(value: str, field_name: str) -> date:
@@ -76,21 +91,7 @@ def get_fixtures(
         "page": page,
     }
 
-    response = requests.get(
-        url,
-        headers=headers,
-        params=params,
-        timeout=20,
-        impersonate="chrome",
-    )
-
-    if response.status_code != 200:
-        raise HTTPException(
-            status_code=response.status_code,
-            detail=response.text,
-        )
-
-    return response.json()
+    return _request_dribl(url, params=params)
 
 
 # Build a leagues list from fixture data.
@@ -130,7 +131,9 @@ def get_leagues_from_fixtures(
             or "Unknown League"
         )
 
-        fixture_date = attributes.get("local_start_date") or attributes.get("start_date")
+        fixture_date = attributes.get("local_start_date") or attributes.get(
+            "start_date"
+        )
         season_name = attributes.get("season_name") or "Current Season"
 
         if league_id not in leagues:
@@ -150,10 +153,16 @@ def get_leagues_from_fixtures(
         league["matches"] += 1
 
         if fixture_date:
-            if not league["first_match_date"] or fixture_date < league["first_match_date"]:
+            if (
+                not league["first_match_date"]
+                or fixture_date < league["first_match_date"]
+            ):
                 league["first_match_date"] = fixture_date
 
-            if not league["last_match_date"] or fixture_date > league["last_match_date"]:
+            if (
+                not league["last_match_date"]
+                or fixture_date > league["last_match_date"]
+            ):
                 league["last_match_date"] = fixture_date
 
     current_year = today.year
@@ -165,8 +174,7 @@ def get_leagues_from_fixtures(
             league["status"] = "Active"
 
         elif any(
-            str(year) in season
-            for year in range(current_year + 1, current_year + 5)
+            str(year) in season for year in range(current_year + 1, current_year + 5)
         ):
             league["status"] = "Upcoming"
 
@@ -180,7 +188,7 @@ def get_leagues_from_fixtures(
         league_list = [
             league
             for league in league_list
-                if league.get("status", "").lower() == normalized_status
+            if league.get("status", "").lower() == normalized_status
         ]
 
     return {
