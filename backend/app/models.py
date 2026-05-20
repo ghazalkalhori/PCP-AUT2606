@@ -1,42 +1,46 @@
-from sqlalchemy import Column, Integer, String, Text
+from typing import Optional
+
+from sqlalchemy import String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.db import Base
 
 
-# This class = table in database
+# This class represents the reports table in the database.
 class Report(Base):
-    __tablename__ = "reports"  # table name
+    __tablename__ = "reports"
 
-    # Primary key (unique ID for each report)
-    id = Column(Integer, primary_key=True, index=True)
+    # Primary key, unique ID for each report.
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
-    # Dribl fixture ID (match ID)
-    fixture_id = Column(String)
+    # Dribl fixture ID, also known as the match ID.
+    fixture_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    # Type of report (pre-match, post-match, etc.)
-    report_type = Column(String)
+    # Type of report, such as pre-match or post-match.
+    report_type: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    # Tone of report (formal, casual, etc.)
-    tone = Column(String)
+    # Tone of the report, such as professional or casual.
+    tone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    # Actual generated report text
-    content = Column(Text)
+    # Actual generated report text.
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # Workflow status (draft, approved, etc.)
-    status = Column(String, default="draft")
+    # Workflow status, such as draft or approved.
+    status: Mapped[str] = mapped_column(String, default="draft")
 
 
-# This class = users table
+# This class represents the users table in the database.
 class User(Base):
     __tablename__ = "users"
 
-    # Unique user ID
-    id = Column(Integer, primary_key=True, index=True)
+    # Primary key, unique ID for each user.
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
-    # Employee username
-    username = Column(String, unique=True, index=True)
+    # Employee username or email.
+    username: Mapped[str] = mapped_column(String, unique=True, index=True)
 
-    # Hashed password, never store plain password
-    password_hash = Column(String)
+    # Hashed password. Never store plain passwords.
+    password_hash: Mapped[str] = mapped_column(String)
 
-    # Simple role, example: admin/editor
-    role = Column(String, default="admin")
+    # Simple role, such as admin or editor.
+    role: Mapped[str] = mapped_column(String, default="admin")

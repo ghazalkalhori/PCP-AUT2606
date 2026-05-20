@@ -5,16 +5,19 @@ from typing import Optional
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from jose import jwt, JWTError
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app import models
 from app.db import Base, engine, SessionLocal
-from app.services.dribl import get_fixture, get_fixtures
 from app.services.dribl import get_fixture, get_fixtures, get_leagues_from_fixtures
+
+from app.schemas import GenerateReportRequest, GenerateReportResponse
+from app.services.prompts import build_match_report_prompt
+from app.services.ollama import generate_report
 
 Base.metadata.create_all(bind=engine)
 
@@ -36,7 +39,7 @@ app.add_middleware(
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY: str = os.getenv("SECRET_KEY", "")
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY not set in environment")
 
@@ -175,6 +178,38 @@ def get_published(
     user: str = Depends(get_current_user),
 ):
     return db.query(models.Report).filter(models.Report.status == "published").all()
+
+
+# Generate AI football report using the LLM server through Ollama.
+@app.post("/reports/generate", response_model=GenerateReportResponse)
+def generate_ai_report(
+    request: GenerateReportRequest,
+    user: str = Depends(get_current_user),
+):
+    try:
+        # Convert frontend report settings and match data into a prompt.
+        prompt = build_match_report_prompt(
+            report_type=request.report_type,
+            tone=request.tone,
+            excitement=request.excitement,
+            comedic_effect=request.comedic_effect,
+            match_data=request.match_data,
+        )
+
+        # Send the prompt to Ollama and receive generated text.
+        result = generate_report(prompt)
+
+        return GenerateReportResponse(
+            success=True,
+            report=result["report"],
+            model=result["model"],
+        )
+
+    except Exception as error:
+        return GenerateReportResponse(
+            success=False,
+            error=str(error),
+        )
 
 
 @app.get("/reports/{report_id}")
