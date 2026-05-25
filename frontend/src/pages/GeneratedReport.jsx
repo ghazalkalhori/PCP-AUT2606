@@ -12,6 +12,18 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { clsx } from "clsx";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("reporta_token");
+
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 function convertTextToHtml(text) {
   if (!text) return "";
 
@@ -74,22 +86,55 @@ function GeneratedReport() {
   const [copied, setCopied] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const [editableReport, setEditableReport] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
-  const { data, contentType, writingStyle, type, generatedReport, model } =
-    location.state || {};
+  const {
+    data,
+    contentType,
+    writingStyle,
+    type,
+    generatedReport,
+    model,
+    reportId,
+    reportStatus,
+  } = location.state || {};
 
   useEffect(() => {
-    setEditableReport(convertTextToHtml(generatedReport || ""));
+    if (!generatedReport) {
+      setEditableReport("");
+      return;
+    }
+
+    const isHtml =
+      generatedReport.includes("<p") || generatedReport.includes("<h");
+
+    setEditableReport(
+      isHtml ? generatedReport : convertTextToHtml(generatedReport),
+    );
   }, [generatedReport]);
+
+  useEffect(() => {
+    const normalizedStatus = (reportStatus || "").toLowerCase();
+
+    if (normalizedStatus === "approved" || normalizedStatus === "published") {
+      setApproved(true);
+      setDraftSaved(false);
+      return;
+    }
+
+    if (normalizedStatus === "draft" || normalizedStatus === "review") {
+      setDraftSaved(true);
+      setApproved(false);
+    }
+  }, [reportStatus]);
 
   const plainReportText = useMemo(
     () => convertHtmlToText(editableReport),
     [editableReport],
   );
 
-  const wordCount = plainReportText
-    .split(/\s+/)
-    .filter(Boolean).length;
+  const wordCount = plainReportText.split(/\s+/).filter(Boolean).length;
 
   if (!generatedReport) {
     return (
@@ -128,6 +173,7 @@ function GeneratedReport() {
     setEditableReport(nextValue);
     setDraftSaved(false);
     setApproved(false);
+    setSaveError("");
   };
 
   const handleCopy = async () => {
@@ -162,14 +208,64 @@ function GeneratedReport() {
     URL.revokeObjectURL(url);
   };
 
-  const handleSaveDraft = () => {
-    setDraftSaved(true);
-    setApproved(false);
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    setSaveError("");
+
+    try {
+      if (reportId) {
+        const response = await fetch(`${API_BASE_URL}/reports/${reportId}`, {
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            content: editableReport,
+            status: "draft",
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Could not save draft.");
+        }
+      }
+
+      setDraftSaved(true);
+      setApproved(false);
+    } catch (error) {
+      console.error("Failed saving draft:", error);
+      setSaveError("Could not save draft. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleApprove = () => {
-    setApproved(true);
-    setDraftSaved(false);
+  const handleApprove = async () => {
+    setSaving(true);
+    setSaveError("");
+
+    try {
+      if (reportId) {
+        const response = await fetch(`${API_BASE_URL}/reports/${reportId}`, {
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            content: editableReport,
+            status: "approved",
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Could not approve report.");
+        }
+      }
+
+      setApproved(true);
+      setDraftSaved(false);
+    } catch (error) {
+      console.error("Failed approving report:", error);
+      setSaveError("Could not approve report. Please try again.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -259,7 +355,11 @@ function GeneratedReport() {
             >
               <Save size={13} />
               <span className="hidden sm:inline">
-                {draftSaved ? "Draft Saved" : "Save Draft"}
+                {saving
+                  ? "Saving..."
+                  : draftSaved
+                    ? "Draft Saved"
+                    : "Save Draft"}
               </span>
             </button>
 
@@ -274,11 +374,19 @@ function GeneratedReport() {
               )}
             >
               <CheckCircle2 size={13} />
-              {approved ? "Approved" : "Approve"}
+              {saving ? "Saving..." : approved ? "Approved" : "Approve"}
             </button>
           </div>
         </div>
       </div>
+
+      {saveError && (
+        <div className="px-4 pb-5 sm:px-6">
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {saveError}
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col items-start gap-5 px-4 pb-10 sm:px-6 lg:flex-row">
         <div className="min-w-0 flex-1 rounded-xl border border-gray-100 bg-white shadow-sm">
@@ -288,13 +396,12 @@ function GeneratedReport() {
                 Report Editor
               </h2>
               <p className="mt-1 text-sm text-gray-400">
-                Edit the generated content before saving, approving, or publishing.
+                Edit the generated content before saving, approving, or
+                publishing.
               </p>
             </div>
 
-            <div className="text-sm text-gray-400">
-              {wordCount} words
-            </div>
+            <div className="text-sm text-gray-400">{wordCount} words</div>
           </div>
 
           <div className="report-editor-wrapper min-h-155 p-5 sm:p-6">
@@ -302,6 +409,7 @@ function GeneratedReport() {
               theme="snow"
               value={editableReport}
               onChange={updateReport}
+              readOnly={saving}
               modules={editorModules}
               formats={editorFormats}
               className="report-editor"

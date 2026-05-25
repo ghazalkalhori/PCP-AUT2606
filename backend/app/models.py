@@ -2,6 +2,8 @@ from typing import Optional
 
 from sqlalchemy import String, Text
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import DateTime
+from datetime import datetime
 
 from app.db import Base
 
@@ -27,6 +29,19 @@ class Report(Base):
 
     # Workflow status, such as draft or approved.
     status: Mapped[str] = mapped_column(String, default="draft")
+
+    # Timestamp for when the report was created.
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+    )
+
+    # Timestamp for when the report was last updated. Automatically updated on changes.
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
 
 # This class represents the users table in the database.

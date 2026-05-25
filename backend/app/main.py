@@ -61,8 +61,35 @@ class JobRequest(BaseModel):
     tone: str = "professional"
 
 
+
 class ReportUpdate(BaseModel):
     content: str
+
+
+class ReportCreate(BaseModel):
+    fixture_id: Optional[str] = None
+    report_type: str
+    tone: str = "professional"
+    content: str
+    status: str = "draft"
+
+
+class ReportPatch(BaseModel):
+    content: Optional[str] = None
+    status: Optional[str] = None
+
+
+def serialize_report(report: models.Report):
+    return {
+        "id": report.id,
+        "fixture_id": report.fixture_id,
+        "report_type": report.report_type,
+        "tone": report.tone,
+        "content": report.content,
+        "status": report.status,
+        "created_at": getattr(report, "created_at", None),
+        "updated_at": getattr(report, "updated_at", None),
+    }
 
 
 def get_db():
@@ -169,7 +196,33 @@ def get_reports(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
-    return db.query(models.Report).all()
+    reports = db.query(models.Report).order_by(models.Report.id.desc()).all()
+
+    return {
+        "data": [serialize_report(report) for report in reports],
+        "total": len(reports),
+    }
+
+
+@app.post("/reports")
+def create_report(
+    request: ReportCreate,
+    db: Session = Depends(get_db),
+    user: str = Depends(get_current_user),
+):
+    new_report = models.Report(
+        fixture_id=request.fixture_id,
+        report_type=request.report_type,
+        tone=request.tone,
+        content=request.content,
+        status=request.status,
+    )
+
+    db.add(new_report)
+    db.commit()
+    db.refresh(new_report)
+
+    return serialize_report(new_report)
 
 
 @app.get("/reports/published")
@@ -177,7 +230,17 @@ def get_published(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
-    return db.query(models.Report).filter(models.Report.status == "published").all()
+    reports = (
+        db.query(models.Report)
+        .filter(models.Report.status == "published")
+        .order_by(models.Report.id.desc())
+        .all()
+    )
+
+    return {
+        "data": [serialize_report(report) for report in reports],
+        "total": len(reports),
+    }
 
 
 # Generate AI football report using the LLM server through Ollama.
@@ -223,7 +286,7 @@ def get_report(
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    return report
+    return serialize_report(report)
 
 
 @app.put("/reports/{report_id}")
@@ -239,12 +302,41 @@ def update_report(
         raise HTTPException(status_code=404, detail="Report not found")
 
     report.content = request.content
-    report.status = "review"
+    report.status = "draft"
 
     db.commit()
     db.refresh(report)
 
-    return report
+    return serialize_report(report)
+
+
+@app.patch("/reports/{report_id}")
+def patch_report(
+    report_id: int,
+    request: ReportPatch,
+    db: Session = Depends(get_db),
+    user: str = Depends(get_current_user),
+):
+    report = db.query(models.Report).filter(models.Report.id == report_id).first()
+
+    if report is None:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    if request.content is not None:
+        report.content = request.content
+
+    if request.status is not None:
+        allowed_statuses = {"processing", "draft", "review", "approved", "published", "failed"}
+
+        if request.status not in allowed_statuses:
+            raise HTTPException(status_code=400, detail="Invalid report status")
+
+        report.status = request.status
+
+    db.commit()
+    db.refresh(report)
+
+    return serialize_report(report)
 
 
 @app.post("/reports/{report_id}/approve")
@@ -258,18 +350,12 @@ def approve_report(
     if report is None:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    if report.status != "review":
-        raise HTTPException(
-            status_code=400,
-            detail="Report must be in review stage to approve",
-        )
-
     report.status = "approved"
 
     db.commit()
     db.refresh(report)
 
-    return report
+    return serialize_report(report)
 
 
 @app.post("/reports/{report_id}/publish")
@@ -294,7 +380,7 @@ def publish_report(
     db.commit()
     db.refresh(report)
 
-    return report
+    return serialize_report(report)
 
 
 @app.delete("/reports/{report_id}")
@@ -342,7 +428,7 @@ def get_dashboard(
             "approved": approved_count,
             "published": published_count,
         },
-        "recent_reports": reports[-5:],
+        "recent_reports": [serialize_report(report) for report in reports[-5:]],
     }
 
 

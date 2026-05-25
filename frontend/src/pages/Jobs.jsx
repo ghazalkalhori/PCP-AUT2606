@@ -1,6 +1,6 @@
 // Jobs page uses mock generation jobs until the LLM/report backend is connected.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { clsx } from "clsx";
 import StatusBadge from "../components/StatusBadge.jsx";
+
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 const mockJobs = [
   {
@@ -88,7 +91,13 @@ const typeBadgeStyles = {
   "League Summary": "bg-amber-50 text-amber-700 ring-amber-100",
 };
 
-const statusOptions = ["Completed", "Processing", "Approved", "Failed"];
+const statusOptions = [
+  "Draft",
+  "Approved",
+  "Published",
+  "Processing",
+  "Failed",
+];
 
 function JobStatusIcon({ icon }) {
   if (icon === "processing") {
@@ -129,18 +138,98 @@ function Jobs() {
   const [selectedStatuses, setSelectedStatuses] = useState([]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [savedJobs, setSavedJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function fetchReports() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const token = localStorage.getItem("reporta_token");
+
+        const response = await fetch(`${API_BASE_URL}/reports`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Could not load reports");
+        }
+
+        const result = await response.json();
+
+        const mappedReports = result.data.map((report) => {
+          const content = report.content || "";
+          const words = content.trim()
+            ? content.trim().split(/\s+/).length
+            : null;
+
+          return {
+            id: `REPORT-${report.id}`,
+            reportId: report.id,
+            title: report.fixture_id || "Generated Report",
+            source: report.fixture_id || "Saved Report",
+            type: report.report_type?.includes("league")
+              ? "League Summary"
+              : report.report_type?.includes("pre")
+                ? "Pre-Match"
+                : "Post-Match",
+            status:
+              report.status === "draft"
+                ? "Draft"
+                : report.status === "approved"
+                  ? "Approved"
+                  : report.status === "published"
+                    ? "Published"
+                    : report.status === "failed"
+                      ? "Failed"
+                      : "Processing",
+            date: report.created_at
+              ? new Date(report.created_at).toLocaleDateString()
+              : "Unknown date",
+            time: report.created_at
+              ? new Date(report.created_at).toLocaleTimeString()
+              : "Unknown time",
+            words,
+            report: content,
+            icon:
+              report.status === "approved" || report.status === "published"
+                ? "approved"
+                : report.status === "failed"
+                  ? "failed"
+                  : report.status === "processing"
+                    ? "processing"
+                    : "completed",
+          };
+        });
+
+        setSavedJobs(mappedReports);
+      } catch (err) {
+        setError("Could not load reports from database");
+        setSavedJobs([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchReports();
+  }, []);
 
   const counts = useMemo(() => {
-    return mockJobs.reduce((acc, job) => {
+    return savedJobs.reduce((acc, job) => {
       acc[job.status] = (acc[job.status] || 0) + 1;
       return acc;
     }, {});
-  }, []);
+  }, [savedJobs]);
 
   const jobs = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
-    return mockJobs.filter((job) => {
+    return savedJobs.filter((job) => {
       const matchesFilter =
         selectedStatuses.length === 0 || selectedStatuses.includes(job.status);
 
@@ -152,7 +241,7 @@ function Jobs() {
 
       return matchesFilter && matchesSearch;
     });
-  }, [selectedStatuses, searchTerm]);
+  }, [savedJobs, selectedStatuses, searchTerm]);
 
   function toggleStatus(status) {
     setSelectedStatuses((currentStatuses) =>
@@ -172,10 +261,11 @@ function Jobs() {
     navigate("/report/result", {
       state: {
         type: job.type === "League Summary" ? "league" : "match",
+        reportId: job.reportId,
         contentType: job.type,
         writingStyle: "Professional",
         generatedReport: job.report,
-        model: "Demo Report",
+        model: "Saved Report",
         data: {
           name: job.source,
           competition: job.source,
@@ -202,7 +292,7 @@ function Jobs() {
 
         <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
           <Sparkles size={15} />
-          Demo data until LLM is connected
+          Saved reports from database{" "}
         </div>
       </div>
 
@@ -279,14 +369,24 @@ function Jobs() {
         </div>
       </section>
 
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <div className="flex items-center justify-between text-sm text-slate-500">
         <p>
-          Showing {jobs.length} of {mockJobs.length} jobs
+          Showing {jobs.length} of {savedJobs.length} jobs
         </p>
-        <p>Updated just now</p>
+        <p>{loading ? "Loading..." : "Loaded from database"}</p>{" "}
       </div>
 
-      {jobs.length === 0 ? (
+      {loading ? (
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
+          Loading reports...
+        </div>
+      ) : jobs.length === 0 ? (
         <EmptyState />
       ) : (
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
