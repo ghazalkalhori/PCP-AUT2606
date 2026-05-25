@@ -9,6 +9,7 @@ const navItems = [
   { name: "Matches", path: "/matches" },
   { name: "Leagues", path: "/leagues" },
   { name: "Jobs", path: "/jobs" },
+  { name: "Generate Report", path: "/generate" },
 ];
 
 const Sidebar = ({ isOpen = true, setIsOpen }) => {

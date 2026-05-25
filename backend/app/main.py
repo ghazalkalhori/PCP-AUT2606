@@ -15,9 +15,9 @@ from app import models
 from app.db import Base, engine, SessionLocal
 from app.services.dribl import get_fixture, get_fixtures, get_leagues_from_fixtures
 
-from app.schemas import GenerateReportRequest, GenerateReportResponse
+from app.schemas import GenerateReportRequest, GenerateReportResponse, OllamaStatusResponse
 from app.services.prompts import build_match_report_prompt
-from app.services.ollama import generate_report
+from app.services.ollama import generate_report, fetch_ollama_tags
 
 Base.metadata.create_all(bind=engine)
 
@@ -92,6 +92,14 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# Check whether the backend can reach Ollama.
+# Requires auth so only logged-in admins can probe the connection.
+@app.get("/ollama/status", response_model=OllamaStatusResponse)
+def ollama_status(user: str = Depends(get_current_user)):
+    result = fetch_ollama_tags()
+    return OllamaStatusResponse(**result)
 
 
 @app.post("/auth/login")
@@ -187,7 +195,6 @@ def generate_ai_report(
     user: str = Depends(get_current_user),
 ):
     try:
-        # Convert frontend report settings and match data into a prompt.
         prompt = build_match_report_prompt(
             report_type=request.report_type,
             tone=request.tone,
@@ -196,14 +203,18 @@ def generate_ai_report(
             match_data=request.match_data,
         )
 
-        # Send the prompt to Ollama and receive generated text.
-        result = generate_report(prompt)
+        # Pass the optional model override; service falls back to env default.
+        result = generate_report(prompt, model=request.model)
 
         return GenerateReportResponse(
             success=True,
             report=result["report"],
             model=result["model"],
         )
+
+    except HTTPException:
+        # Re-raise FastAPI HTTP errors (503, 504, 502) without wrapping them.
+        raise
 
     except Exception as error:
         return GenerateReportResponse(

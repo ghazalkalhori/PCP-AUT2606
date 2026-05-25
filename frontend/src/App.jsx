@@ -8,6 +8,7 @@ import Matches from "./pages/Matches.jsx";
 import Leagues from "./pages/Leagues.jsx";
 import Jobs from "./pages/Jobs.jsx";
 import GeneratedReport from "./pages/GeneratedReport.jsx";
+import GenerateReport from "./pages/GenerateReport.jsx";
 import NotFound from "./pages/NotFound.jsx";
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
             <Route path="leagues" element={<Leagues />} />
             <Route path="jobs" element={<Jobs />} />
             <Route path="report/result" element={<GeneratedReport />} />
+            <Route path="generate" element={<GenerateReport />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFound />} />
