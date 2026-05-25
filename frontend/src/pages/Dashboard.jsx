@@ -6,6 +6,9 @@ import { useNavigate } from "react-router-dom";
 import StatusBadge from "../components/StatusBadge.jsx";
 import { getAuthToken } from "../utils/auth.js";
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -14,6 +17,10 @@ export default function Dashboard() {
 
   // Dashboard data from backend
   const [dashboardData, setDashboardData] = useState(null);
+  const [realCounts, setRealCounts] = useState({
+    matches: 0,
+    leagues: 0,
+  });
 
   // Loading and error states
   const [loading, setLoading] = useState(true);
@@ -29,7 +36,7 @@ export default function Dashboard() {
         const token = getAuthToken();
 
         // Call backend dashboard endpoint
-        const response = await fetch("http://127.0.0.1:8000/dashboard", {
+        const response = await fetch(`${API_BASE_URL}/dashboard`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -45,6 +52,48 @@ export default function Dashboard() {
 
         // Save dashboard data into state
         setDashboardData(data);
+        const authHeaders = {
+          Authorization: `Bearer ${token}`,
+        };
+
+        const [matchesResponse, leaguesResponse] = await Promise.allSettled([
+          fetch(`${API_BASE_URL}/matches?page=1`, {
+            headers: authHeaders,
+          }),
+          fetch(`${API_BASE_URL}/leagues`, {
+            headers: authHeaders,
+          }),
+        ]);
+
+        let matchesCount = data?.stats?.matches ?? 0;
+        let leaguesCount = data?.stats?.leagues ?? 0;
+
+        if (matchesResponse.status === "fulfilled" && matchesResponse.value.ok) {
+          const matchesData = await matchesResponse.value.json();
+
+          matchesCount =
+            matchesData?.pagination?.total ??
+            matchesData?.meta?.total ??
+            matchesData?.total ??
+            matchesData?.data?.length ??
+            matchesCount;
+        }
+
+        if (leaguesResponse.status === "fulfilled" && leaguesResponse.value.ok) {
+          const leaguesData = await leaguesResponse.value.json();
+
+          leaguesCount =
+            leaguesData?.pagination?.total ??
+            leaguesData?.meta?.total ??
+            leaguesData?.total ??
+            leaguesData?.data?.length ??
+            leaguesCount;
+        }
+
+        setRealCounts({
+          matches: matchesCount,
+          leagues: leaguesCount,
+        });
       } catch (error) {
         setError("Could not connect to backend.");
       } finally {
@@ -69,7 +118,7 @@ export default function Dashboard() {
   const stats = [
     {
       label: "Matches",
-      value: dashboardData?.stats?.matches ?? 0,
+      value: realCounts.matches,
       icon: "📅",
     },
     {
@@ -79,7 +128,7 @@ export default function Dashboard() {
     },
     {
       label: "Leagues",
-      value: dashboardData?.stats?.leagues ?? 0,
+      value: realCounts.leagues,
       icon: "🏆",
     },
     {

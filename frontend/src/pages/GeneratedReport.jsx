@@ -1,14 +1,70 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   RefreshCw,
-  Bookmark,
   CheckCircle2,
   Copy,
   Download,
+  Save,
 } from "lucide-react";
+import ReactQuill from "react-quill";
+import "react-quill/dist/quill.snow.css";
 import { clsx } from "clsx";
+
+function convertTextToHtml(text) {
+  if (!text) return "";
+
+  return text
+    .split("\n")
+    .map((line) => {
+      if (!line.trim()) return "<p><br /></p>";
+
+      if (line.startsWith("### ")) {
+        return `<h1>${line.replace("### ", "")}</h1>`;
+      }
+
+      if (line.startsWith("#### ")) {
+        return `<h2>${line.replace("#### ", "")}</h2>`;
+      }
+
+      if (line.startsWith("- ")) {
+        return `<p>• ${line.replace("- ", "")}</p>`;
+      }
+
+      return `<p>${line}</p>`;
+    })
+    .join("");
+}
+
+function convertHtmlToText(html) {
+  const element = document.createElement("div");
+  element.innerHTML = html || "";
+
+  return element.innerText.trim();
+}
+
+const editorModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, false] }],
+    ["bold", "italic", "underline"],
+    [{ list: "ordered" }, { list: "bullet" }],
+    [{ align: [] }],
+    ["link"],
+    ["clean"],
+  ],
+};
+
+const editorFormats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "list",
+  "bullet",
+  "align",
+  "link",
+];
 
 function GeneratedReport() {
   const location = useLocation();
@@ -16,9 +72,24 @@ function GeneratedReport() {
 
   const [approved, setApproved] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [editableReport, setEditableReport] = useState("");
 
   const { data, contentType, writingStyle, type, generatedReport, model } =
     location.state || {};
+
+  useEffect(() => {
+    setEditableReport(convertTextToHtml(generatedReport || ""));
+  }, [generatedReport]);
+
+  const plainReportText = useMemo(
+    () => convertHtmlToText(editableReport),
+    [editableReport],
+  );
+
+  const wordCount = plainReportText
+    .split(/\s+/)
+    .filter(Boolean).length;
 
   if (!generatedReport) {
     return (
@@ -27,6 +98,7 @@ function GeneratedReport() {
           <p className="mb-4 text-gray-600">No generated report found.</p>
 
           <button
+            type="button"
             onClick={() => navigate("/jobs")}
             className="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
           >
@@ -39,7 +111,9 @@ function GeneratedReport() {
 
   const matchTitle =
     type === "match" && data
-      ? `${data.homeTeam?.name} vs ${data.awayTeam?.name}`
+      ? `${data.homeTeam?.name || "Home Team"} vs ${
+          data.awayTeam?.name || "Away Team"
+        }`
       : data?.name || "League Summary";
 
   const competition =
@@ -50,9 +124,15 @@ function GeneratedReport() {
       ? `${data.date} at ${data.time}`
       : "Current Season";
 
+  const updateReport = (nextValue) => {
+    setEditableReport(nextValue);
+    setDraftSaved(false);
+    setApproved(false);
+  };
+
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(generatedReport);
+      await navigator.clipboard.writeText(plainReportText);
 
       setCopied(true);
 
@@ -65,30 +145,38 @@ function GeneratedReport() {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([generatedReport], {
+    const blob = new Blob([plainReportText], {
       type: "text/plain;charset=utf-8",
     });
 
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
 
     link.href = url;
     link.download = "generated-report.txt";
 
     document.body.appendChild(link);
-
     link.click();
-
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
+  };
+
+  const handleSaveDraft = () => {
+    setDraftSaved(true);
+    setApproved(false);
+  };
+
+  const handleApprove = () => {
+    setApproved(true);
+    setDraftSaved(false);
   };
 
   return (
     <div className="min-h-full bg-[#f5f6fa]">
       <div className="px-4 pb-2 pt-5 sm:px-6">
         <button
+          type="button"
           onClick={() => navigate("/jobs")}
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
         >
@@ -103,9 +191,18 @@ function GeneratedReport() {
             Generated Report
           </h1>
 
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-green-100 bg-green-50 px-3 py-1 text-sm font-semibold text-green-700">
+          <span
+            className={clsx(
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-semibold",
+              approved
+                ? "border-emerald-100 bg-emerald-50 text-emerald-700"
+                : draftSaved
+                  ? "border-amber-100 bg-amber-50 text-amber-700"
+                  : "border-green-100 bg-green-50 text-green-700",
+            )}
+          >
             <CheckCircle2 size={13} />
-            Completed
+            {approved ? "Approved" : draftSaved ? "Draft Saved" : "Completed"}
           </span>
         </div>
 
@@ -128,6 +225,7 @@ function GeneratedReport() {
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handleCopy}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
             >
@@ -138,6 +236,7 @@ function GeneratedReport() {
             </button>
 
             <button
+              type="button"
               onClick={handleDownload}
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
             >
@@ -145,18 +244,28 @@ function GeneratedReport() {
               <span className="hidden sm:inline">Download</span>
             </button>
 
-            <button className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
               <RefreshCw size={13} />
               <span className="hidden sm:inline">Regenerate</span>
             </button>
 
-            <button className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
-              <Bookmark size={13} />
-              <span className="hidden sm:inline">Save Draft</span>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              <Save size={13} />
+              <span className="hidden sm:inline">
+                {draftSaved ? "Draft Saved" : "Save Draft"}
+              </span>
             </button>
 
             <button
-              onClick={() => setApproved(!approved)}
+              type="button"
+              onClick={handleApprove}
               className={clsx(
                 "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
                 approved
@@ -172,48 +281,35 @@ function GeneratedReport() {
       </div>
 
       <div className="flex flex-col items-start gap-5 px-4 pb-10 sm:px-6 lg:flex-row">
-        <div className="min-w-0 flex-1 rounded-xl border border-gray-100 bg-white p-5 shadow-sm sm:p-8">
-          <div className="space-y-4">
-            {generatedReport.split("\n").map((line, index) => {
-              if (!line.trim()) {
-                return <br key={index} />;
-              }
+        <div className="min-w-0 flex-1 rounded-xl border border-gray-100 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 p-5 sm:p-6">
+            <div>
+              <h2 className="text-base font-bold text-gray-900">
+                Report Editor
+              </h2>
+              <p className="mt-1 text-sm text-gray-400">
+                Edit the generated content before saving, approving, or publishing.
+              </p>
+            </div>
 
-              if (line.startsWith("###")) {
-                return (
-                  <h2
-                    key={index}
-                    className="mt-6 text-2xl font-bold text-gray-900"
-                  >
-                    {line.replace("###", "").trim()}
-                  </h2>
-                );
-              }
+            <div className="text-sm text-gray-400">
+              {wordCount} words
+            </div>
+          </div>
 
-              if (line.startsWith("####")) {
-                return (
-                  <h3
-                    key={index}
-                    className="mt-5 text-lg font-bold text-gray-900"
-                  >
-                    {line.replace("####", "").trim()}
-                  </h3>
-                );
-              }
-
-              return (
-                <p
-                  key={index}
-                  className="text-sm leading-8 text-gray-700 sm:text-[15px]"
-                >
-                  {line}
-                </p>
-              );
-            })}
+          <div className="report-editor-wrapper min-h-155 p-5 sm:p-6">
+            <ReactQuill
+              theme="snow"
+              value={editableReport}
+              onChange={updateReport}
+              modules={editorModules}
+              formats={editorFormats}
+              className="report-editor"
+            />
           </div>
         </div>
 
-        <div className="w-full shrink-0 space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm lg:w-65">
+        <div className="w-full shrink-0 space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm lg:w-64">
           <h3 className="text-sm font-bold text-gray-900">Content Details</h3>
 
           <div className="space-y-3">
