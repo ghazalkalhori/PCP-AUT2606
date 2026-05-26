@@ -186,10 +186,17 @@ function Jobs() {
         const sourceData = report.source_data || {};
         const homeTeam = sourceData.homeTeam || "";
         const awayTeam = sourceData.awayTeam || "";
+        const leagueTitle =
+          sourceData.leagueName ||
+          sourceData.league ||
+          sourceData.competition ||
+          "";
         const title =
-          homeTeam && awayTeam
-            ? `${homeTeam} vs ${awayTeam}`
-            : report.fixture_id || "Generated Report";
+          sourceData.kind === "league" && leagueTitle
+            ? leagueTitle
+            : homeTeam && awayTeam
+              ? `${homeTeam} vs ${awayTeam}`
+              : report.fixture_id || "Generated Report";
         const source =
           sourceData.league || sourceData.competition || "Not provided";
         const createdLabel = formatStoredDateTime(report.created_at);

@@ -203,7 +203,8 @@ function GeneratedReport() {
     homeTeam && awayTeam ? `${homeTeam} vs ${awayTeam}` : fallbackTitle;
 
   const leagueName = displayValue(
-    reportData?.league ||
+    reportData?.leagueName ||
+      reportData?.league ||
       reportData?.competition ||
       data?.league ||
       data?.competition,
@@ -233,7 +234,9 @@ function GeneratedReport() {
 
   const leagueRound = displayValue(reportData?.roundLabel || reportData?.round, "All rounds");
   const leagueSeason = displayValue(reportData?.season || data?.season);
-  const leagueMatches = displayValue(reportData?.matches || data?.matches);
+  const leagueMatches = Array.isArray(reportData?.matches)
+    ? displayValue(reportData.matchCount ?? reportData.matches.length)
+    : displayValue(reportData?.matchCount ?? reportData?.matches ?? data?.matches);
 
   const updateReport = (nextValue) => {
     setEditableReport(nextValue);

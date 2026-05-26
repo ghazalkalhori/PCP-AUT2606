@@ -38,16 +38,6 @@ function displayValue(value, fallback = "Not provided") {
   return fallback;
 }
 
-function buildDemoLeagueSummary(data, writingStyle, selectedRound) {
-  const leagueName = displayValue(data.name || data.league || data.competition, "Selected League");
-  const season = displayValue(data.season, "current season");
-  const matches = displayValue(data.matches || data.match_count, "available");
-  const status = displayValue(data.status, "active");
-  const roundLabel = selectedRound === "all" ? "all available rounds" : `Round ${selectedRound}`;
-
-  return `### ${leagueName} Summary\n\n${leagueName} is currently part of the ${season} football competition. This summary covers ${roundLabel}, using the available league information. The league currently has ${matches} matches and a status of ${status}.\n\n#### League Context\n\nThis draft uses only the available league-level data. It avoids unsupported team rankings, player names, scores, or statistics that are not provided in the source data.\n\n#### Editorial Notes\n\nWriting style: ${writingStyle}. This league summary can be reviewed, edited, saved as a draft, or approved before publication.`;
-}
-
 function OptionButton({ selected, label, onClick, className }) {
   return (
     <button
@@ -116,41 +106,54 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
 
     try {
       const leagueName = displayValue(data.name || data.league || data.competition, "Selected League");
-      const summaryContent = buildDemoLeagueSummary(data, writingStyle, selectedRound);
-      const sourceData = {
-        kind: "league",
-        league: leagueName,
-        season: displayValue(data.season),
-        matches: displayValue(data.matches || data.match_count),
-        status: displayValue(data.status),
-        round: selectedRound,
-        roundLabel: selectedRoundLabel,
-        contentType: "league_summary",
-        writingStyle: writingStyle.toLowerCase(),
-      };
+      const rawMatchCount = data.matches ?? data.match_count;
+      const numericMatchCount = Number(rawMatchCount);
+      const matches =
+        data.matchList ||
+        data.match_list ||
+        data.fixtures ||
+        (Array.isArray(data.matches) ? data.matches : []);
 
-      const response = await fetch(`${API_BASE_URL}/reports`, {
+      const response = await fetch(`${API_BASE_URL}/league-summary/jobs`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          fixture_id: leagueName,
-          report_type: "league_summary",
+          league_id: data.id || data.leagueId || data.league_id || null,
+          league_name: leagueName,
+          competition: displayValue(data.competition || data.league || leagueName),
+          season: displayValue(data.season),
+          round: selectedRound,
+          round_label: selectedRoundLabel,
+          matches,
+          match_count: Number.isNaN(numericMatchCount)
+            ? null
+            : numericMatchCount,
+          status: displayValue(data.status),
           tone: writingStyle.toLowerCase(),
-          source_data: sourceData,
-          content: summaryContent,
-          status: "draft",
         }),
       });
 
+      const result = await response.json().catch(() => ({}));
+
       if (!response.ok) {
-        throw new Error("Could not create league summary.");
+        throw new Error(
+          result?.detail || result?.message || "Could not create league summary.",
+        );
+      }
+
+      if (!result?.report_id || result?.report_status !== "processing") {
+        throw new Error("The backend did not create a processing summary job.");
       }
 
       onClose();
       navigate("/jobs");
     } catch (generateError) {
       console.error("League summary generation failed:", generateError);
-      setError("Could not create league summary. Please try again.");
+      setError(
+        generateError instanceof Error
+          ? generateError.message
+          : "Could not create league summary. Please try again.",
+      );
     } finally {
       setIsGenerating(false);
     }

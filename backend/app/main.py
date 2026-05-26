@@ -17,7 +17,7 @@ from app.db import Base, engine, SessionLocal
 from app.services.dribl import get_fixture, get_fixtures, get_leagues_from_fixtures
 
 from app.schemas import GenerateReportRequest, GenerateReportResponse
-from app.services.prompts import build_match_report_prompt
+from app.services.prompts import build_league_summary_prompt, build_match_report_prompt
 from app.services.ollama import generate_report
 
 Base.metadata.create_all(bind=engine)
@@ -54,6 +54,19 @@ class LoginRequest(BaseModel):
 class JobRequest(BaseModel):
     fixture_id: str
     report_type: str
+    tone: str = "professional"
+
+
+class LeagueSummaryJobRequest(BaseModel):
+    league_id: Optional[str] = None
+    league_name: str
+    competition: Optional[str] = None
+    season: Optional[str] = None
+    round: Optional[Any] = "all"
+    round_label: Optional[str] = None
+    matches: Optional[Any] = None
+    match_count: Optional[int] = None
+    status: Optional[str] = None
     tone: str = "professional"
 
 
@@ -202,6 +215,52 @@ def build_report_prompt(
     )
 
 
+def build_league_source_data(request: LeagueSummaryJobRequest) -> dict[str, Any]:
+    round_value = request.round if request.round not in (None, "") else "all"
+    round_label = request.round_label
+
+    if not round_label:
+        round_label = "All rounds" if round_value == "all" else f"Round {round_value}"
+
+    matches = request.matches if request.matches is not None else []
+
+    return {
+        "kind": "league",
+        "leagueId": request.league_id,
+        "leagueName": request.league_name,
+        "league": request.league_name,
+        "competition": request.competition or request.league_name,
+        "season": request.season,
+        "round": round_value,
+        "roundLabel": round_label,
+        "matches": matches,
+        "matchCount": request.match_count,
+        "status": request.status,
+        "contentType": "League Summary",
+        "writingStyle": request.tone,
+    }
+
+
+def mark_report_generation_failed(
+    db: Session,
+    report: models.Report,
+    error: Exception,
+):
+    source_data = {}
+
+    if report.source_data:
+        try:
+            source_data = json.loads(report.source_data)
+        except json.JSONDecodeError:
+            source_data = {}
+
+    source_data["generation_error"] = str(error)
+    report.source_data = json.dumps(source_data)
+    report.content = f"Report generation failed: {error}"
+    report.status = "failed"
+    db.commit()
+
+
 def run_report_generation_background(
     report_id: int,
     fixture_id: str,
@@ -237,19 +296,41 @@ def run_report_generation_background(
         report = db.query(models.Report).filter(models.Report.id == report_id).first()
 
         if report is not None:
-            source_data = {}
+            mark_report_generation_failed(db, report, error)
 
-            if report.source_data:
-                try:
-                    source_data = json.loads(report.source_data)
-                except json.JSONDecodeError:
-                    source_data = {}
+    finally:
+        db.close()
 
-            source_data["generation_error"] = str(error)
-            report.source_data = json.dumps(source_data)
-            report.content = f"Report generation failed: {error}"
-            report.status = "failed"
-            db.commit()
+
+def run_league_summary_generation_background(report_id: int):
+    db = SessionLocal()
+
+    try:
+        report = db.query(models.Report).filter(models.Report.id == report_id).first()
+
+        if report is None:
+            return
+
+        source_data = json.loads(report.source_data or "{}")
+        prompt = build_league_summary_prompt(
+            tone=report.tone or source_data.get("writingStyle") or "professional",
+            league_data=source_data,
+        )
+        result = generate_report(prompt)
+        report_text = result.get("report", "").strip()
+
+        if not report_text:
+            raise ValueError("The LLM did not return league summary content.")
+
+        report.content = report_text
+        report.status = "draft"
+        db.commit()
+
+    except Exception as error:
+        report = db.query(models.Report).filter(models.Report.id == report_id).first()
+
+        if report is not None:
+            mark_report_generation_failed(db, report, error)
 
     finally:
         db.close()
@@ -332,6 +413,41 @@ def create_job(
         request.fixture_id,
         request.report_type,
         request.tone,
+    )
+
+    return {
+        "job_status": "processing",
+        "report_status": new_report.status,
+        "report_id": new_report.id,
+        "report": None,
+    }
+
+
+@app.post("/league-summary/jobs")
+def create_league_summary_job(
+    request: LeagueSummaryJobRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    user: str = Depends(get_current_user),
+):
+    source_data = build_league_source_data(request)
+
+    new_report = models.Report(
+        fixture_id=None,
+        report_type="league_summary",
+        tone=request.tone,
+        source_data=json.dumps(source_data),
+        content=None,
+        status="processing",
+    )
+
+    db.add(new_report)
+    db.commit()
+    db.refresh(new_report)
+
+    background_tasks.add_task(
+        run_league_summary_generation_background,
+        new_report.id,
     )
 
     return {
