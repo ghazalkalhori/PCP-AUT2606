@@ -1,6 +1,4 @@
-// Jobs page uses mock generation jobs until the LLM/report backend is connected.
-
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AlertCircle,
@@ -25,7 +23,7 @@ const typeBadgeStyles = {
 };
 
 const statusOptions = [
-  "Draft",
+  "Complete",
   "Approved",
   "Published",
   "Processing",
@@ -54,7 +52,7 @@ function formatReportType(type) {
 }
 
 function formatReportStatus(status) {
-  if (status === "draft") return "Draft";
+  if (status === "draft") return "Complete";
   if (status === "approved") return "Approved";
   if (status === "published") return "Published";
   if (status === "failed") return "Failed";
@@ -90,11 +88,7 @@ function JobStatusIcon({ status }) {
     return <CheckCircle size={17} className="text-emerald-500" />;
   }
 
-  if (status === "Draft") {
-    return <CheckCircle size={17} className="text-amber-500" />;
-  }
-
-  if (status === "Completed") {
+  if (status === "Complete") {
     return <CheckCircle size={17} className="text-blue-500" />;
   }
 
@@ -107,9 +101,8 @@ function JobStatusIcon({ status }) {
 
 function JobStatusBadge({ status }) {
   const styles = {
-    Draft: "bg-amber-50 text-amber-700 ring-amber-100",
     Approved: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-    Completed: "bg-blue-50 text-blue-700 ring-blue-100",
+    Complete: "bg-blue-50 text-blue-700 ring-blue-100",
     Processing: "bg-blue-50 text-blue-700 ring-blue-100",
     Failed: "bg-red-50 text-red-700 ring-red-100",
   };
@@ -162,80 +155,88 @@ function Jobs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function fetchReports() {
-      try {
+  const fetchReports = useCallback(async ({ showLoader = false } = {}) => {
+    try {
+      if (showLoader) {
         setLoading(true);
-        setError("");
+      }
 
-        const token = localStorage.getItem("reporta_token");
+      setError("");
 
-        const response = await fetch(`${API_BASE_URL}/reports`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+      const token = localStorage.getItem("reporta_token");
 
-        if (!response.ok) {
-          throw new Error("Could not load reports");
-        }
+      const response = await fetch(`${API_BASE_URL}/reports`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        const result = await response.json();
+      if (!response.ok) {
+        throw new Error("Could not load reports");
+      }
 
-        const mappedReports = result.data.map((report) => {
-          const content = report.content || "";
-          const words = content.trim()
-            ? content.trim().split(/\s+/).length
-            : null;
+      const result = await response.json();
 
-          const sourceData = report.source_data || {};
-          const homeTeam = sourceData.homeTeam || "";
-          const awayTeam = sourceData.awayTeam || "";
-          const title =
-            homeTeam && awayTeam
-              ? `${homeTeam} vs ${awayTeam}`
-              : report.fixture_id || "Generated Report";
-          const source =
-            sourceData.league || sourceData.competition || "Not provided";
-          const createdLabel = formatStoredDateTime(report.created_at);
+      const mappedReports = result.data.map((report) => {
+        const content = report.content || "";
+        const words = content.trim()
+          ? content.trim().split(/\s+/).length
+          : null;
 
-          return {
-            id: `REPORT-${report.id}`,
-            reportId: report.id,
-            title,
-            source,
-            type: formatReportType(report.report_type),
-            status: formatReportStatus(report.status),
-            createdLabel,
-            sourceData,
-            reportType: report.report_type,
-            tone: report.tone,
-            createdAt: report.created_at,
-            updatedAt: report.updated_at,
-            words,
-            report: content,
-            icon:
-              report.status === "approved" || report.status === "published"
-                ? "approved"
-                : report.status === "failed"
-                  ? "failed"
-                  : report.status === "processing"
-                    ? "processing"
-                    : "completed",
-          };
-        });
+        const sourceData = report.source_data || {};
+        const homeTeam = sourceData.homeTeam || "";
+        const awayTeam = sourceData.awayTeam || "";
+        const title =
+          homeTeam && awayTeam
+            ? `${homeTeam} vs ${awayTeam}`
+            : report.fixture_id || "Generated Report";
+        const source =
+          sourceData.league || sourceData.competition || "Not provided";
+        const createdLabel = formatStoredDateTime(report.created_at);
 
-        setSavedJobs(mappedReports);
-      } catch (err) {
-        setError("Could not load reports from database");
+        return {
+          id: `REPORT-${report.id}`,
+          reportId: report.id,
+          title,
+          source,
+          type: formatReportType(report.report_type),
+          status: formatReportStatus(report.status),
+          createdLabel,
+          sourceData,
+          reportType: report.report_type,
+          tone: report.tone,
+          createdAt: report.created_at,
+          updatedAt: report.updated_at,
+          words,
+          report: content,
+          icon:
+            report.status === "approved" || report.status === "published"
+              ? "approved"
+              : report.status === "failed"
+                ? "failed"
+                : report.status === "processing"
+                  ? "processing"
+                  : "complete",
+        };
+      });
+
+      setSavedJobs(mappedReports);
+    } catch (err) {
+      setError("Could not load reports from database");
+
+      if (showLoader) {
         setSavedJobs([]);
-      } finally {
+      }
+    } finally {
+      if (showLoader) {
         setLoading(false);
       }
     }
-
-    fetchReports();
   }, []);
+
+  useEffect(() => {
+    fetchReports({ showLoader: true });
+  }, [fetchReports]);
 
   const counts = useMemo(() => {
     return savedJobs.reduce((acc, job) => {
@@ -243,6 +244,21 @@ function Jobs() {
       return acc;
     }, {});
   }, [savedJobs]);
+
+  const hasProcessingJobs = useMemo(
+    () => savedJobs.some((job) => job.status === "Processing"),
+    [savedJobs],
+  );
+
+  useEffect(() => {
+    if (!hasProcessingJobs) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      fetchReports();
+    }, 3000);
+
+    return () => window.clearInterval(intervalId);
+  }, [fetchReports, hasProcessingJobs]);
 
   const jobs = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -422,7 +438,7 @@ function Jobs() {
                 type="button"
                 onClick={() => handleOpenJob(job)}
                 disabled={job.status === "Processing"}
-                className="flex w-full flex-col gap-4 px-5 py-4 text-left transition hover:bg-emerald-50/40 disabled:cursor-wait disabled:hover:bg-white sm:flex-row sm:items-center sm:justify-between"
+                className="flex w-full flex-col gap-4 px-5 py-4 text-left transition hover:bg-emerald-50/40 disabled:cursor-wait disabled:bg-slate-50/60 disabled:opacity-80 disabled:hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-100">

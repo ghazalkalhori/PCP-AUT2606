@@ -112,6 +112,8 @@ function GeneratedReport() {
     reportStatus,
   } = location.state || {};
 
+  const normalizedReportStatus = String(reportStatus || "").toLowerCase();
+
   useEffect(() => {
     if (!generatedReport) {
       setEditableReport("");
@@ -127,19 +129,24 @@ function GeneratedReport() {
   }, [generatedReport]);
 
   useEffect(() => {
-    const normalizedStatus = (reportStatus || "").toLowerCase();
-
-    if (normalizedStatus === "approved" || normalizedStatus === "published") {
+    if (
+      normalizedReportStatus === "approved" ||
+      normalizedReportStatus === "published"
+    ) {
       setApproved(true);
       setDraftSaved(false);
       return;
     }
 
-    if (normalizedStatus === "draft" || normalizedStatus === "review") {
+    if (
+      normalizedReportStatus === "draft" ||
+      normalizedReportStatus === "complete" ||
+      normalizedReportStatus === "review"
+    ) {
       setDraftSaved(true);
       setApproved(false);
     }
-  }, [reportStatus]);
+  }, [normalizedReportStatus]);
 
   const plainReportText = useMemo(
     () => convertHtmlToText(editableReport),
@@ -147,6 +154,26 @@ function GeneratedReport() {
   );
 
   const wordCount = plainReportText.split(/\s+/).filter(Boolean).length;
+
+  if (normalizedReportStatus === "processing") {
+    return (
+      <div className="flex min-h-full items-center justify-center">
+        <div className="rounded-xl bg-white p-8 shadow-sm">
+          <p className="mb-4 text-gray-600">
+            This report is still being generated.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => navigate("/jobs")}
+            className="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+          >
+            Back to Jobs
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!generatedReport) {
     return (
@@ -324,7 +351,7 @@ function GeneratedReport() {
               )}
             >
               <CheckCircle2 size={13} />
-              {approved ? "Approved" : draftSaved ? "Draft Saved" : "Completed"}
+              {approved ? "Approved" : draftSaved ? "Draft Saved" : "Complete"}
             </span>
           </div>
 

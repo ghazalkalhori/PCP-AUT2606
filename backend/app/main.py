@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any, Optional
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -122,6 +122,139 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+def get_fixture_attributes(fixture_id: str) -> dict[str, Any]:
+    fixture = get_fixture(fixture_id)
+    fixture_data = fixture.get("data", {}) if isinstance(fixture, dict) else {}
+    attributes = (
+        fixture_data.get("attributes", {})
+        if isinstance(fixture_data, dict)
+        else {}
+    )
+
+    if not isinstance(attributes, dict) or not attributes:
+        raise HTTPException(
+            status_code=502,
+            detail="Fixture data did not include match attributes.",
+        )
+
+    return attributes
+
+
+def build_score(data: dict[str, Any]) -> str:
+    home_score = data.get("home_score")
+    away_score = data.get("away_score")
+
+    if home_score is None or away_score is None:
+        home_score = data.get("home_team_score")
+        away_score = data.get("away_team_score")
+
+    if home_score is not None and away_score is not None:
+        return f"{home_score}-{away_score}"
+
+    return "Not available"
+
+
+def build_match_source_data(
+    data: dict[str, Any],
+    report_type: str,
+    tone: str,
+    score: str,
+) -> dict[str, Any]:
+    return {
+        "kind": "match",
+        "homeTeam": data.get("home_team"),
+        "awayTeam": data.get("away_team"),
+        "league": data.get("league_name"),
+        "competition": data.get("competition_name"),
+        "venue": data.get("ground_name"),
+        "matchDate": data.get("local_start_date"),
+        "matchTime": data.get("local_start_time"),
+        "status": data.get("event_status"),
+        "score": score,
+        "contentType": report_type,
+        "writingStyle": tone,
+    }
+
+
+def build_report_prompt(
+    data: dict[str, Any],
+    report_type: str,
+    tone: str,
+    score: str,
+) -> str:
+    return build_match_report_prompt(
+        report_type=report_type,
+        tone=tone,
+        excitement="Medium",
+        comedic_effect="None",
+        match_data={
+            "home_team": data.get("home_team"),
+            "away_team": data.get("away_team"),
+            "competition": data.get("competition_name"),
+            "league": data.get("league_name"),
+            "date": data.get("local_start_date"),
+            "time": data.get("local_start_time"),
+            "venue": data.get("ground_name"),
+            "field": data.get("field_name"),
+            "status": data.get("event_status"),
+            "score": score,
+        },
+    )
+
+
+def run_report_generation_background(
+    report_id: int,
+    fixture_id: str,
+    report_type: str,
+    tone: str,
+):
+    db = SessionLocal()
+
+    try:
+        report = db.query(models.Report).filter(models.Report.id == report_id).first()
+
+        if report is None:
+            return
+
+        data = get_fixture_attributes(fixture_id)
+        score = build_score(data)
+        prompt = build_report_prompt(data, report_type, tone, score)
+        result = generate_report(prompt)
+        report_text = result.get("report", "").strip()
+
+        if not report_text:
+            raise ValueError("The LLM did not return report content.")
+
+        report.content = report_text
+        report.status = "draft"
+
+        source_data = build_match_source_data(data, report_type, tone, score)
+        report.source_data = json.dumps(source_data)
+
+        db.commit()
+
+    except Exception as error:
+        report = db.query(models.Report).filter(models.Report.id == report_id).first()
+
+        if report is not None:
+            source_data = {}
+
+            if report.source_data:
+                try:
+                    source_data = json.loads(report.source_data)
+                except json.JSONDecodeError:
+                    source_data = {}
+
+            source_data["generation_error"] = str(error)
+            report.source_data = json.dumps(source_data)
+            report.content = f"Report generation failed: {error}"
+            report.status = "failed"
+            db.commit()
+
+    finally:
+        db.close()
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -157,58 +290,55 @@ def match_detail(fixture_id: str, user: str = Depends(get_current_user)):
 @app.post("/jobs")
 def create_job(
     request: JobRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
-    data = get_fixture(request.fixture_id)["data"]["attributes"]
+    data = get_fixture_attributes(request.fixture_id)
 
-    report_text = f"""
-{request.report_type.title()} Report
+    match_status = str(data.get("event_status", "")).lower()
+    report_type = request.report_type.lower().replace("_", "-")
 
-{data["home_team"]} vs {data["away_team"]}
+    if match_status == "pending" and report_type == "post-match":
+        raise HTTPException(
+            status_code=400,
+            detail="Post-match reports are only available for complete matches.",
+        )
 
-Competition: {data["competition_name"]}
-League: {data["league_name"]}
-Date: {data["local_start_date"]} {data["local_start_time"]}
-Venue: {data["ground_name"]}
-
-Status: {data["event_status"]}
-
-Tone: {request.tone}
-"""
-
-    source_data = {
-        "kind": "match",
-        "homeTeam": data.get("home_team"),
-        "awayTeam": data.get("away_team"),
-        "league": data.get("league_name"),
-        "competition": data.get("competition_name"),
-        "venue": data.get("ground_name"),
-        "matchDate": data.get("local_start_date"),
-        "matchTime": data.get("local_start_time"),
-        "status": data.get("event_status"),
-        "contentType": request.report_type,
-        "writingStyle": request.tone,
-    }
+    score = build_score(data)
+    source_data = build_match_source_data(
+        data=data,
+        report_type=request.report_type,
+        tone=request.tone,
+        score=score,
+    )
 
     new_report = models.Report(
         fixture_id=request.fixture_id,
         report_type=request.report_type,
         tone=request.tone,
         source_data=json.dumps(source_data),
-        content=report_text,
-        status="draft",
+        content=None,
+        status="processing",
     )
 
     db.add(new_report)
     db.commit()
     db.refresh(new_report)
 
+    background_tasks.add_task(
+        run_report_generation_background,
+        new_report.id,
+        request.fixture_id,
+        request.report_type,
+        request.tone,
+    )
+
     return {
-        "job_status": "completed",
+        "job_status": "processing",
         "report_status": new_report.status,
         "report_id": new_report.id,
-        "report": new_report.content,
+        "report": None,
     }
 
 
