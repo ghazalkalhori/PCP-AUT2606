@@ -503,35 +503,3 @@ def league_list(
         end_date=end_date,
         status=status,
     )
-
-
-# remove this endpoint after debugging - it is used to analyze the different match statuses in Dribl data
-from collections import Counter
-
-
-@app.get("/debug/match-statuses")
-def debug_match_statuses(user: str = Depends(get_current_user)):
-    page = 1
-    event_statuses = Counter()
-    matchsheet_statuses = Counter()
-
-    while True:
-        result = get_fixtures(page=page)
-        fixtures = result.get("data", [])
-
-        for fixture in fixtures:
-            attrs = fixture.get("attributes", {})
-            event_statuses[attrs.get("event_status")] += 1
-            matchsheet_statuses[attrs.get("matchsheet_status")] += 1
-
-        last_page = result.get("meta", {}).get("last_page", page)
-
-        if page >= last_page:
-            break
-
-        page += 1
-
-    return {
-        "event_statuses": dict(event_statuses),
-        "matchsheet_statuses": dict(matchsheet_statuses),
-    }
