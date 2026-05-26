@@ -2,7 +2,7 @@
 // It loads dashboard data from FastAPI using the saved JWT token.
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../utils/auth.js";
 
@@ -141,6 +141,28 @@ function getReportDetails(report) {
     .join(" • ");
 }
 
+function formatLastDriblSync(value) {
+  if (!value) return "Never";
+
+  const timestamp = String(value);
+  const hasTimezone = /([zZ]|[+-]\d{2}:?\d{2})$/.test(timestamp);
+  const date = new Date(hasTimezone ? timestamp : `${timestamp}Z`);
+
+  if (Number.isNaN(date.getTime())) {
+    return timestamp;
+  }
+
+  return new Intl.DateTimeFormat("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Australia/Sydney",
+    timeZoneName: "short",
+  }).format(date);
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -149,100 +171,92 @@ export default function Dashboard() {
 
   // Dashboard data from backend
   const [dashboardData, setDashboardData] = useState(null);
-  const [realCounts, setRealCounts] = useState({
-    matches: 0,
-    leagues: 0,
-  });
 
   // Loading and error states
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+  const [syncError, setSyncError] = useState("");
+
+  async function fetchDashboard({ showLoader = false } = {}) {
+    if (showLoader) {
+      setLoading(true);
+    }
+
+    try {
+      const token = getAuthToken();
+
+      const response = await fetch(`${API_BASE_URL}/dashboard`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.detail || "Failed to load dashboard.");
+        return;
+      }
+
+      setDashboardData(data);
+      setError("");
+    } catch (error) {
+      setError("Could not connect to backend.");
+    } finally {
+      if (showLoader) {
+        setLoading(false);
+      }
+    }
+  }
 
   useEffect(() => {
     // Small delay for card animation
     const timer = setTimeout(() => setVisible(true), 80);
 
-    async function fetchDashboard() {
-      try {
-        // Get JWT token saved after login
-        const token = getAuthToken();
-
-        // Call backend dashboard endpoint
-        const response = await fetch(`${API_BASE_URL}/dashboard`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await response.json();
-
-        // Show backend error if request fails
-        if (!response.ok) {
-          setError(data.detail || "Failed to load dashboard.");
-          return;
-        }
-
-        // Save dashboard data into state
-        setDashboardData(data);
-        const authHeaders = {
-          Authorization: `Bearer ${token}`,
-        };
-
-        const [matchesResponse, leaguesResponse] = await Promise.allSettled([
-          fetch(`${API_BASE_URL}/matches?page=1`, {
-            headers: authHeaders,
-          }),
-          fetch(`${API_BASE_URL}/leagues`, {
-            headers: authHeaders,
-          }),
-        ]);
-
-        let matchesCount = data?.stats?.matches ?? 0;
-        let leaguesCount = data?.stats?.leagues ?? 0;
-
-        if (
-          matchesResponse.status === "fulfilled" &&
-          matchesResponse.value.ok
-        ) {
-          const matchesData = await matchesResponse.value.json();
-
-          matchesCount =
-            matchesData?.pagination?.total ??
-            matchesData?.meta?.total ??
-            matchesData?.total ??
-            matchesData?.data?.length ??
-            matchesCount;
-        }
-
-        if (
-          leaguesResponse.status === "fulfilled" &&
-          leaguesResponse.value.ok
-        ) {
-          const leaguesData = await leaguesResponse.value.json();
-
-          leaguesCount =
-            leaguesData?.pagination?.total ??
-            leaguesData?.meta?.total ??
-            leaguesData?.total ??
-            leaguesData?.data?.length ??
-            leaguesCount;
-        }
-
-        setRealCounts({
-          matches: matchesCount,
-          leagues: leaguesCount,
-        });
-      } catch (error) {
-        setError("Could not connect to backend.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchDashboard();
+    fetchDashboard({ showLoader: true });
 
     return () => clearTimeout(timer);
   }, []);
+
+  async function handleUpdateDriblData() {
+    setSyncing(true);
+    setSyncMessage("");
+    setSyncError("");
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE_URL}/sync/dribl`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const result = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          result?.detail || result?.message || "Could not update Dribl data.",
+        );
+      }
+
+      setSyncMessage(
+        `Dribl data updated: ${result.matches_synced ?? 0} matches and ${
+          result.leagues_synced ?? 0
+        } leagues synced.`,
+      );
+      await fetchDashboard();
+    } catch (syncError) {
+      setSyncError(
+        syncError instanceof Error
+          ? syncError.message
+          : "Could not update Dribl data.",
+      );
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -266,21 +280,21 @@ export default function Dashboard() {
   const stats = [
     {
       label: "Matches",
-      value: realCounts.matches,
+      value: dashboardData?.stats?.matches ?? 0,
       icon: "📅",
     },
     {
-      label: "Jobs / Reports",
+      label: "Jobs",
       value: dashboardData?.stats?.jobs ?? 0,
       icon: "💼",
     },
     {
       label: "Leagues",
-      value: realCounts.leagues,
+      value: dashboardData?.stats?.leagues ?? 0,
       icon: "🏆",
     },
     {
-      label: "Usable Reports",
+      label: "Content/Reports",
       value: dashboardData?.stats?.content ?? 0,
       icon: "📄",
     },
@@ -288,6 +302,9 @@ export default function Dashboard() {
 
   // Recent reports from backend
   const recentReports = dashboardData?.recent_reports || [];
+  const hasSyncedDriblData =
+    (dashboardData?.stats?.matches ?? 0) > 0 ||
+    (dashboardData?.stats?.leagues ?? 0) > 0;
 
   function handleOpenReport(report) {
     const sourceData = report.source_data || {};
@@ -338,6 +355,49 @@ export default function Dashboard() {
     <div className="space-y-7">
       {/* Header */}
       {pageHeader}
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="m-0 text-sm font-semibold text-slate-800">
+            Dribl fixture data
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            {hasSyncedDriblData
+              ? "Dashboard, matches, and leagues are reading from the local database."
+              : "No Dribl data has been synced yet. Update Dribl data to load matches and leagues."}
+          </p>
+          {syncMessage && (
+            <p className="mt-2 text-sm font-medium text-emerald-700">
+              {syncMessage}
+            </p>
+          )}
+          {syncError && (
+            <p className="mt-2 text-sm font-medium text-red-700">
+              {syncError}
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col items-start gap-1 md:items-end">
+          <button
+            type="button"
+            onClick={handleUpdateDriblData}
+            disabled={syncing}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            <RefreshCw
+              size={16}
+              className={syncing ? "animate-spin" : ""}
+              aria-hidden="true"
+            />
+            {syncing ? "Updating..." : "Update Dribl Data"}
+          </button>
+          <p className="m-0 text-xs text-slate-400">
+            Last updated:{" "}
+            {formatLastDriblSync(dashboardData?.last_dribl_sync_at)}
+          </p>
+        </div>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -529,6 +529,10 @@ async function getMatchList({
     params.set("end_date", effectiveEndDate);
   }
 
+  if (status && status !== "all") {
+    params.set("status", status);
+  }
+
   const response = await fetch(`${API_BASE_URL}/matches?${params}`, {
     headers: {
       Authorization: `Bearer ${token}`,
@@ -968,7 +972,7 @@ function Matches() {
       {!error && !refreshing && sortedMatches.length === 0 && (
         <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
           <p className="text-sm font-medium text-slate-700">
-            No matches found.
+            No matches found. Update Dribl data from the Dashboard to sync matches.
           </p>
         </div>
       )}

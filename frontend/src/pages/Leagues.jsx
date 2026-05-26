@@ -187,7 +187,6 @@ function Leagues() {
           <p>
             Showing {leagues.length} of {leagues.length} leagues
           </p>
-          <p>Loaded from Dribl fixtures</p>
         </div>
       )}
 
@@ -277,7 +276,7 @@ function Leagues() {
 
       {!error && leagues.length === 0 && (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
-          No leagues found.
+          No leagues found. Update Dribl data from the Dashboard to sync leagues.
         </div>
       )}
 
