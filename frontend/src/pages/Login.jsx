@@ -17,6 +17,8 @@ import {
   Loader2,
 } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
 function Login() {
   // Used for page navigation after successful login
   const navigate = useNavigate();
@@ -73,7 +75,7 @@ function Login() {
 
     try {
       // Send login request to backend
-      const response = await fetch("http://127.0.0.1:8000/auth/login", {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -110,7 +112,7 @@ function Login() {
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,#ecfdf5_0,#f8fafc_38%,#f1f5f9_100%)] flex items-center justify-center px-4 py-6">
+    <main className="flex min-h-screen items-center justify-center overflow-hidden bg-slate-100 px-4 py-6">
       {/* Soft loading overlay gives login a smoother transition */}
       {loading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/55 backdrop-blur-sm">
@@ -120,26 +122,26 @@ function Login() {
           </div>
         </div>
       )}
-      <section className="w-full max-w-120">
-        <div className="text-center mb-6">
-          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-500 shadow-[0_18px_45px_rgba(16,185,129,0.18)]">
+      <section className="w-full max-w-md">
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-500 shadow-xl">
             <Zap size={34} strokeWidth={2.5} />
           </div>
 
-          <h1 className="text-[36px] font-black tracking-[-1.4px] text-slate-950">
+          <h1 className="text-4xl font-black tracking-tight text-slate-950">
             REPORTA AI
           </h1>
 
-          <p className="mt-3 text-[14px] text-slate-500">
+          <p className="mt-3 text-sm text-slate-500">
             AI-powered football content generation
           </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-[26px] border border-slate-200/80 bg-white/95 px-8 py-7 shadow-[0_28px_80px_rgba(15,23,42,0.10)] backdrop-blur"
+          className="rounded-3xl border border-slate-200 bg-white px-8 py-7 shadow-xl"
         >
-          <h2 className="mb-6 text-center text-[24px] font-bold text-slate-950">
+          <h2 className="mb-6 text-center text-2xl font-bold text-slate-950">
             Welcome Back
           </h2>
 
@@ -166,7 +168,7 @@ function Login() {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="admin@reporta.ai"
-                className="h-full w-full border-none bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
+                className="h-full w-full border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
               />
             </div>
           </div>
@@ -187,7 +189,7 @@ function Login() {
                 onChange={handleChange}
                 onKeyUp={handlePasswordKey}
                 placeholder="Password"
-                className="h-full w-full border-none bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
+                className="h-full w-full border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
               />
 
               {/* Show/hide password button */}
@@ -226,7 +228,7 @@ function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-[15px] font-bold text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5 hover:bg-slate-800 hover:shadow-xl disabled:translate-y-0 disabled:cursor-wait disabled:opacity-75"
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 text-sm font-bold text-white shadow-lg transition hover:bg-slate-800 disabled:cursor-wait disabled:opacity-75"
           >
             {loading ? (
               <>

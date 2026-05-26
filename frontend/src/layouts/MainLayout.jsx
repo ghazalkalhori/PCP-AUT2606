@@ -7,7 +7,7 @@ const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-[#f5f6fa] relative">
+    <div className="relative flex h-screen w-full overflow-hidden bg-[#f5f6fa]">
       {/* Overlay */}
       {isSidebarOpen && (
         <div
@@ -18,9 +18,9 @@ const MainLayout = () => {
 
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
-      <main className="flex-1 h-full flex flex-col overflow-hidden w-full">
+      <main className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         {/* Mobile/Tablet Header */}
-        <div className="lg:hidden flex items-center p-4 bg-white border-b border-gray-200 shrink-0">
+        <div className="flex shrink-0 items-center border-b border-gray-200 bg-white p-4 lg:hidden">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="text-gray-500 hover:text-gray-700"
@@ -29,7 +29,7 @@ const MainLayout = () => {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
       </main>

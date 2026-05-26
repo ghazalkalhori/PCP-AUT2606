@@ -1,5 +1,5 @@
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from typing import Optional
 
 from curl_cffi import requests
@@ -62,22 +62,18 @@ def _parse_date_string(value: str, field_name: str) -> date:
         ) from error
 
 
-# Get fixtures from Dribl using optional date range and paging.
+# Get fixtures from Dribl using optional date range, status, and paging.
 def get_fixtures(
     tenant_name: str = "FWW",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    status: Optional[str] = None,
     page: int = 1,
 ):
-    today = date.today()
-    start_day = (
-        _parse_date_string(start_date, "start_date")
-        if start_date
-        else today - timedelta(days=30)
-    )
-    end_day = _parse_date_string(end_date, "end_date") if end_date else today
+    start_day = _parse_date_string(start_date, "start_date") if start_date else None
+    end_day = _parse_date_string(end_date, "end_date") if end_date else None
 
-    if start_day > end_day:
+    if start_day and end_day and start_day > end_day:
         raise HTTPException(
             status_code=400,
             detail="start_date must be on or before end_date",
@@ -85,11 +81,18 @@ def get_fixtures(
 
     url = f"{BASE_URL}/fixtures"
     params = {
-        "start_date": f"{start_day.isoformat()}T00:00:00",
-        "end_date": f"{end_day.isoformat()}T23:59:59",
         "tenant_name": tenant_name,
         "page": page,
     }
+
+    if start_day:
+        params["start_date"] = f"{start_day.isoformat()}T00:00:00"
+
+    if end_day:
+        params["end_date"] = f"{end_day.isoformat()}T23:59:59"
+
+    if status and status.lower() != "all":
+        params["event_status"] = status.lower()
 
     return _request_dribl(url, params=params)
 
@@ -103,16 +106,30 @@ def get_leagues_from_fixtures(
     status: str = "all",
 ):
     today = date.today()
-    end_day = _parse_date_string(end_date, "end_date") if end_date else today
+    end_day = _parse_date_string(end_date, "end_date") if end_date else None
 
-    fixtures_response = get_fixtures(
-        tenant_name=tenant_name,
-        start_date=start_date,
-        end_date=end_day.isoformat(),
-        page=1,
-    )
+    fixtures = []
+    page = 1
 
-    fixtures = fixtures_response.get("data", [])
+    while True:
+        fixtures_response = get_fixtures(
+            tenant_name=tenant_name,
+            start_date=start_date,
+            end_date=end_day.isoformat() if end_day else None,
+            status=None,
+            page=page,
+        )
+
+        fixtures.extend(fixtures_response.get("data", []))
+
+        meta = fixtures_response.get("meta", {})
+        last_page = meta.get("last_page") or page
+
+        if page >= last_page:
+            break
+
+        page += 1
+
     leagues = {}
 
     for fixture in fixtures:
@@ -134,6 +151,7 @@ def get_leagues_from_fixtures(
         fixture_date = attributes.get("local_start_date") or attributes.get(
             "start_date"
         )
+        round_number = attributes.get("round_number")
         season_name = attributes.get("season_name") or "Current Season"
 
         if league_id not in leagues:
@@ -147,10 +165,14 @@ def get_leagues_from_fixtures(
                 "first_match_date": fixture_date,
                 "last_match_date": fixture_date,
                 "status": "Past",
+                "rounds": set(),
             }
 
         league = leagues[league_id]
         league["matches"] += 1
+
+        if round_number is not None:
+            league["rounds"].add(round_number)
 
         if fixture_date:
             if (
@@ -169,6 +191,7 @@ def get_leagues_from_fixtures(
 
     for league in leagues.values():
         season = league.get("season", "")
+        league["rounds"] = sorted(league.get("rounds", []))
 
         if str(current_year) in season:
             league["status"] = "Active"

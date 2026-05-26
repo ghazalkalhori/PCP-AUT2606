@@ -1,11 +1,52 @@
 import { useEffect, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { ChevronDown, Sparkles, X } from "lucide-react";
 import { clsx } from "clsx";
 import { useNavigate } from "react-router-dom";
 
 const labelClassName = "text-xs text-gray-400 uppercase tracking-wide mb-1";
 
+
 const writingStyles = ["Professional", "Casual", "Analytical", "Dramatic"];
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("reporta_token");
+
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function displayValue(value, fallback = "Not provided") {
+  if (value === null || value === undefined || value === "") return fallback;
+
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  if (typeof value === "object") {
+    return (
+      value.name ||
+      value.title ||
+      Object.values(value).filter(Boolean).map(String).join(" - ") ||
+      fallback
+    );
+  }
+
+  return fallback;
+}
+
+function buildDemoLeagueSummary(data, writingStyle, selectedRound) {
+  const leagueName = displayValue(data.name || data.league || data.competition, "Selected League");
+  const season = displayValue(data.season, "current season");
+  const matches = displayValue(data.matches || data.match_count, "available");
+  const status = displayValue(data.status, "active");
+  const roundLabel = selectedRound === "all" ? "all available rounds" : `Round ${selectedRound}`;
+
+  return `### ${leagueName} Summary\n\n${leagueName} is currently part of the ${season} football competition. This summary covers ${roundLabel}, using the available league information. The league currently has ${matches} matches and a status of ${status}.\n\n#### League Context\n\nThis draft uses only the available league-level data. It avoids unsupported team rankings, player names, scores, or statistics that are not provided in the source data.\n\n#### Editorial Notes\n\nWriting style: ${writingStyle}. This league summary can be reviewed, edited, saved as a draft, or approved before publication.`;
+}
 
 function OptionButton({ selected, label, onClick, className }) {
   return (
@@ -29,11 +70,17 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
   const navigate = useNavigate();
 
   const [writingStyle, setWritingStyle] = useState("Professional");
+  const [selectedRound, setSelectedRound] = useState("all");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!isOpen) return;
 
     setWritingStyle("Professional");
+    setSelectedRound("all");
+    setError("");
+    setIsGenerating(false);
   }, [isOpen]);
 
   useEffect(() => {
@@ -56,17 +103,57 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
 
   if (!isOpen || !data) return null;
 
-  const handleGenerate = () => {
-    onClose();
+  const leagueName = displayValue(data.name || data.league || data.competition, "Selected League");
+  const leagueSeason = displayValue(data.season, "Season not provided");
+  const leagueMatches = displayValue(data.matches || data.match_count, "Matches not provided");
+  const leagueStatus = displayValue(data.status, "Status not provided");
+  const availableRounds = Array.isArray(data.rounds) ? data.rounds : [];
+  const selectedRoundLabel = selectedRound === "all" ? "All rounds" : `Round ${selectedRound}`;
 
-    navigate("/report/result", {
-      state: {
-        type: "league",
-        data,
-        contentType: "League Summary",
-        writingStyle,
-      },
-    });
+  const handleGenerate = async () => {
+    setIsGenerating(true);
+    setError("");
+
+    try {
+      const leagueName = displayValue(data.name || data.league || data.competition, "Selected League");
+      const summaryContent = buildDemoLeagueSummary(data, writingStyle, selectedRound);
+      const sourceData = {
+        kind: "league",
+        league: leagueName,
+        season: displayValue(data.season),
+        matches: displayValue(data.matches || data.match_count),
+        status: displayValue(data.status),
+        round: selectedRound,
+        roundLabel: selectedRoundLabel,
+        contentType: "league_summary",
+        writingStyle: writingStyle.toLowerCase(),
+      };
+
+      const response = await fetch(`${API_BASE_URL}/reports`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          fixture_id: leagueName,
+          report_type: "league_summary",
+          tone: writingStyle.toLowerCase(),
+          source_data: sourceData,
+          content: summaryContent,
+          status: "draft",
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Could not create league summary.");
+      }
+
+      onClose();
+      navigate("/jobs");
+    } catch (generateError) {
+      console.error("League summary generation failed:", generateError);
+      setError("Could not create league summary. Please try again.");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -76,7 +163,7 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
       role="presentation"
     >
       <div
-        className="mx-4 max-h-[90vh] w-full overflow-y-auto rounded-2xl bg-white p-8 shadow-2xl md:max-w-2xl"
+        className="mx-4 max-h-screen w-full overflow-y-auto rounded-3xl bg-white p-6 shadow-xl md:max-w-2xl md:p-8"
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -113,11 +200,36 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
           <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
             <p className={labelClassName}>League</p>
 
-            <p className="mt-2 font-bold text-gray-900">{data.name}</p>
+            <p className="mt-2 font-bold text-gray-900">{leagueName}</p>
 
             <p className="mt-1 text-sm text-gray-500">
-              {data.season} • {data.matches} matches • {data.status}
+              {leagueSeason} • {leagueMatches} matches • {leagueStatus}
             </p>
+          </div>
+
+          <div className="mb-6">
+            <p className={labelClassName}>Round</p>
+
+            <div className="relative mt-3">
+              <select
+                value={selectedRound}
+                onChange={(event) => setSelectedRound(event.target.value)}
+                className="h-12 w-full appearance-none rounded-xl border border-gray-200 bg-gray-50 px-4 pr-10 text-sm font-medium text-gray-700 outline-none transition hover:border-green-300 hover:bg-white focus:border-green-400 focus:bg-white focus:ring-2 focus:ring-green-100"
+              >
+                <option value="all">All rounds</option>
+                {availableRounds.map((round) => (
+                  <option key={round} value={round}>
+                    Round {round}
+                  </option>
+                ))}
+              </select>
+
+              <ChevronDown
+                size={18}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                aria-hidden="true"
+              />
+            </div>
           </div>
 
           <div className="mb-6">
@@ -138,18 +250,23 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
 
           <div className="mb-6 border-t border-gray-100" />
 
+          {error && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
           <button
             type="button"
             onClick={handleGenerate}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-4 text-base font-semibold text-white transition-colors hover:bg-green-600"
+            disabled={isGenerating}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-4 text-base font-semibold text-white transition-colors hover:bg-green-600 disabled:cursor-wait disabled:opacity-70"
           >
             <Sparkles size={18} />
-            Generate Summary
+            {isGenerating ? "Creating Summary..." : "Generate Summary"}
           </button>
 
           <p className="mt-4 text-center text-xs text-gray-400">
-            The AI will generate a league summary based on current league data
-            and statistics.
+            The summary will use the selected league, round, and writing style.
           </p>
         </div>
       </div>

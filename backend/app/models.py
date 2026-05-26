@@ -24,6 +24,9 @@ class Report(Base):
     # Tone of the report, such as professional or casual.
     tone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
+    # Full match/league data and report settings as JSON text.
+    source_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     # Actual generated report text.
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 

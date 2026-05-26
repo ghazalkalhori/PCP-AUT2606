@@ -3,47 +3,45 @@
 
 import { useEffect, useState } from "react";
 import {
-  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Clock3,
-  Copy,
+  Loader2,
   MapPin,
   RefreshCw,
   Search,
   Sparkles,
-  X,
 } from "lucide-react";
 import { clsx } from "clsx";
 import MatchReportModal from "../components/MatchReportModal";
 
 const columns = [
-  { label: "Match", width: "w-[40%]" },
-  { label: "League", width: "w-[12%]" },
-  { label: "Venue", width: "w-[13%]" },
-  { label: "Date & Time", width: "w-[12%]" },
-  { label: "Status", width: "w-[9%]" },
-  { label: "", width: "w-[9%]" },
+  { label: "Match", width: "40%" },
+  { label: "League", width: "12%" },
+  { label: "Venue", width: "13%" },
+  { label: "Date & Time", width: "12%" },
+  { label: "Status", width: "9%" },
+  { label: "", width: "9%" },
 ];
 
 const sortOptions = [
   { value: "date-asc", label: "Date ascending" },
   { value: "date-desc", label: "Date descending" },
-  { value: "league-asc", label: "League A-Z" },
-  { value: "league-desc", label: "League Z-A" },
-  { value: "home-asc", label: "Home team A-Z" },
-  { value: "away-asc", label: "Away team A-Z" },
-  { value: "status", label: "Status" },
 ];
 
 const statusFilterOptions = [
-  { value: "all", label: "All Statuses" },
-  { value: "complete", label: "Complete" },
+  { value: "all", label: "All" },
   { value: "pending", label: "Pending" },
-  { value: "scheduled", label: "Scheduled" },
-  { value: "cancelled", label: "Cancelled" },
-  { value: "failed", label: "Failed" },
+  { value: "complete", label: "Complete" },
 ];
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+function getTodayDateString() {
+  return new Date().toLocaleDateString("en-CA", {
+    timeZone: "Australia/Sydney",
+  });
+}
 
 const teamAvatarStyles = {
   home: "bg-emerald-100 text-emerald-700 ring-emerald-200",
@@ -63,6 +61,28 @@ const controlClassName =
 
 const secondaryButtonClassName =
   "inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
+
+const pageHeader = (
+  <div>
+    <h1 className="text-2xl font-bold text-slate-900">Matches</h1>
+    <p className="mt-1 text-sm text-slate-500">
+      Browse and manage football match data
+    </p>
+  </div>
+);
+
+function LoadingState({ message = "Loading Matches Data..." }) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
+      <Loader2
+        size={22}
+        className="mx-auto mb-3 animate-spin text-emerald-500"
+        aria-hidden="true"
+      />
+      <p className="text-sm font-semibold text-slate-700">{message}</p>
+    </div>
+  );
+}
 
 function getPageItems(currentPage, lastPage) {
   if (lastPage <= 1) {
@@ -409,19 +429,6 @@ function GenerateButton({ onClick, loading = false }) {
   );
 }
 
-function ResultCell({ match }) {
-  return (
-    <span
-      className={clsx(
-        "text-sm font-medium",
-        match.hasResult ? "text-slate-800" : "text-slate-400",
-      )}
-    >
-      {match.result}
-    </span>
-  );
-}
-
 function createTeam(primaryName, fallbackName, side) {
   const name = primaryName || fallbackName || "Unknown Team";
 
@@ -501,19 +508,28 @@ function formatMatch(match) {
 }
 
 // Frontend calls our FastAPI backend only, not Dribl directly.
-async function getMatchList({ startDate = "", endDate = "", page = 1 } = {}) {
+async function getMatchList({
+  startDate = "",
+  endDate = "",
+  status = "all",
+  page = 1,
+} = {}) {
   const token = localStorage.getItem("reporta_token");
   const params = new URLSearchParams({ page: String(page) });
+  const today = getTodayDateString();
+  const effectiveStartDate =
+    status === "pending" && !startDate ? today : startDate;
+  const effectiveEndDate = status === "complete" && !endDate ? today : endDate;
 
-  if (startDate) {
-    params.set("start_date", startDate);
+  if (effectiveStartDate) {
+    params.set("start_date", effectiveStartDate);
   }
 
-  if (endDate) {
-    params.set("end_date", endDate);
+  if (effectiveEndDate) {
+    params.set("end_date", effectiveEndDate);
   }
 
-  const response = await fetch(`http://127.0.0.1:8000/matches?${params}`, {
+  const response = await fetch(`${API_BASE_URL}/matches?${params}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -548,20 +564,20 @@ async function getMatchList({ startDate = "", endDate = "", page = 1 } = {}) {
 function Matches() {
   const [matches, setMatches] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState("");
   const [startDateFilter, setStartDateFilter] = useState("");
   const [endDateFilter, setEndDateFilter] = useState("");
   const [appliedStartDate, setAppliedStartDate] = useState("");
   const [appliedEndDate, setAppliedEndDate] = useState("");
-  const [selectedLeague, setSelectedLeague] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [appliedStatus, setAppliedStatus] = useState("all");
   const [sortValue, setSortValue] = useState("date-asc");
+  const [appliedSortValue, setAppliedSortValue] = useState("date-asc");
   const [modalOpen, setModalOpen] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [generatingMatchId, setGeneratingMatchId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [copiedFixtureId, setCopiedFixtureId] = useState(false);
   const [error, setError] = useState("");
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -576,6 +592,8 @@ function Matches() {
     page = 1,
     startDate = appliedStartDate,
     endDate = appliedEndDate,
+    status = appliedStatus,
+    search = appliedSearchTerm,
   } = {}) {
     if (showPageLoader) {
       setLoading(true);
@@ -586,8 +604,31 @@ function Matches() {
     setError("");
 
     try {
-      const result = await getMatchList({ startDate, endDate, page });
-      const formattedMatches = result.data.map((match) => {
+      const hasSearch = Boolean(search.trim());
+      const firstResult = await getMatchList({
+        startDate,
+        endDate,
+        status,
+        page,
+      });
+      let allRows = firstResult.data || [];
+      const lastPage = Number(firstResult.meta.last_page || 1);
+      const perPage = Number(firstResult.meta.per_page || allRows.length || 50);
+
+      if (hasSearch && lastPage > 1) {
+        for (let nextPage = 2; nextPage <= lastPage; nextPage += 1) {
+          const nextResult = await getMatchList({
+            startDate,
+            endDate,
+            status,
+            page: nextPage,
+          });
+
+          allRows = [...allRows, ...(nextResult.data || [])];
+        }
+      }
+
+      const formattedMatches = allRows.map((match) => {
         const attributes = match.attributes || {};
 
         return formatMatch({
@@ -620,10 +661,14 @@ function Matches() {
 
       setMatches(formattedMatches);
       setPagination({
-        currentPage: Number(result.meta.current_page || page || 1),
-        lastPage: Number(result.meta.last_page || 1),
-        perPage: Number(result.meta.per_page || formattedMatches.length || 0),
-        total: Number(result.meta.total || formattedMatches.length || 0),
+        currentPage: hasSearch
+          ? 1
+          : Number(firstResult.meta.current_page || page || 1),
+        lastPage: hasSearch ? 1 : lastPage,
+        perPage,
+        total: hasSearch
+          ? formattedMatches.length
+          : Number(firstResult.meta.total || formattedMatches.length || 0),
       });
 
       if (selectedMatch) {
@@ -633,8 +678,6 @@ function Matches() {
 
         if (updatedMatch) {
           setSelectedMatch(updatedMatch);
-        } else {
-          setDrawerOpen(false);
         }
       }
     } catch (loadError) {
@@ -664,32 +707,14 @@ function Matches() {
   }
 
   useEffect(() => {
-    loadMatches({ showPageLoader: true, page: 1, startDate: "", endDate: "" });
+    loadMatches({
+      showPageLoader: true,
+      page: 1,
+      startDate: "",
+      endDate: "",
+      status: "all",
+    });
   }, []);
-
-  useEffect(() => {
-    if (!drawerOpen) {
-      return undefined;
-    }
-
-    const onKeyDown = (event) => {
-      if (event.key === "Escape") {
-        setDrawerOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [drawerOpen]);
-
-  function handleRowClick(match) {
-    setSelectedMatch(match);
-    setDrawerOpen(true);
-    setCopiedFixtureId(false);
-  }
 
   // Modal opening keeps MatchReportModal working with the selected fixture data.
   function handleGenerateClick(event, match) {
@@ -712,19 +737,36 @@ function Matches() {
 
     setAppliedStartDate(startDateFilter);
     setAppliedEndDate(endDateFilter);
+    setAppliedStatus(selectedStatus);
+    setAppliedSearchTerm(searchTerm);
+    setAppliedSortValue(sortValue);
     loadMatches({
       page: 1,
       startDate: startDateFilter,
       endDate: endDateFilter,
+      status: selectedStatus,
+      search: searchTerm,
     });
   }
 
   function handleClearFilters() {
+    setSearchTerm("");
+    setAppliedSearchTerm("");
     setStartDateFilter("");
     setEndDateFilter("");
     setAppliedStartDate("");
     setAppliedEndDate("");
-    loadMatches({ page: 1, startDate: "", endDate: "" });
+    setSelectedStatus("all");
+    setAppliedStatus("all");
+    setSortValue("date-asc");
+    setAppliedSortValue("date-asc");
+    loadMatches({
+      page: 1,
+      startDate: "",
+      endDate: "",
+      status: "all",
+      search: "",
+    });
   }
 
   function handleRefresh() {
@@ -734,15 +776,29 @@ function Matches() {
       page: pagination.currentPage,
       startDate: appliedStartDate,
       endDate: appliedEndDate,
+      status: appliedStatus,
+      search: appliedSearchTerm,
     });
   }
 
   function handlePageChange(nextPage) {
+    const maxPage = appliedSearchTerm.trim()
+      ? displayLastPage
+      : pagination.lastPage;
+
     if (
       nextPage < 1 ||
-      nextPage > pagination.lastPage ||
+      nextPage > maxPage ||
       nextPage === pagination.currentPage
     ) {
+      return;
+    }
+
+    if (appliedSearchTerm.trim()) {
+      setPagination((current) => ({
+        ...current,
+        currentPage: nextPage,
+      }));
       return;
     }
 
@@ -750,27 +806,13 @@ function Matches() {
       page: nextPage,
       startDate: appliedStartDate,
       endDate: appliedEndDate,
+      status: appliedStatus,
     });
-  }
-
-  async function handleCopyFixtureId(event) {
-    event.stopPropagation();
-
-    if (!selectedMatch?.fixture_id || !navigator.clipboard) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(String(selectedMatch.fixture_id));
-      setCopiedFixtureId(true);
-    } catch (copyError) {
-      setCopiedFixtureId(false);
-    }
   }
 
   // Search and local dropdown filters run on the currently loaded page data.
   const filteredMatches = matches.filter((match) => {
-    const search = searchTerm.trim().toLowerCase();
+    const search = appliedSearchTerm.trim().toLowerCase();
     const matchesSearch =
       !search ||
       match.searchValues.some((value) =>
@@ -778,191 +820,139 @@ function Matches() {
           .toLowerCase()
           .includes(search),
       );
-    const matchesLeague =
-      selectedLeague === "all" || match.league === selectedLeague;
     const matchesStatus =
-      selectedStatus === "all" || match.normalizedStatus === selectedStatus;
-
-    return matchesSearch && matchesLeague && matchesStatus;
+      appliedStatus === "all" || match.normalizedStatus === appliedStatus;
+    return matchesSearch && matchesStatus;
   });
 
   // Sorting stays local so we do not complicate the backend.
   const sortedMatches = [...filteredMatches].sort((left, right) => {
-    if (sortValue === "date-desc") {
+    if (appliedSortValue === "date-desc") {
       return right.sortTimestamp - left.sortTimestamp;
     }
-
-    if (sortValue === "league-asc") {
-      return String(left.league || "").localeCompare(
-        String(right.league || ""),
-      );
-    }
-
-    if (sortValue === "league-desc") {
-      return String(right.league || "").localeCompare(
-        String(left.league || ""),
-      );
-    }
-
-    if (sortValue === "home-asc") {
-      return left.homeTeam.name.localeCompare(right.homeTeam.name);
-    }
-
-    if (sortValue === "away-asc") {
-      return left.awayTeam.name.localeCompare(right.awayTeam.name);
-    }
-
-    if (sortValue === "status") {
-      return left.normalizedStatus.localeCompare(right.normalizedStatus);
-    }
-
     return left.sortTimestamp - right.sortTimestamp;
   });
 
-  const leagueOptions = [
-    "All Leagues",
-    ...Array.from(
-      new Set(matches.map((match) => match.league).filter(Boolean)),
-    ).sort((left, right) => left.localeCompare(right)),
-  ];
-  const pageItems = getPageItems(pagination.currentPage, pagination.lastPage);
+  const isSearchMode = Boolean(appliedSearchTerm.trim());
+  const rowsPerPage = pagination.perPage || 50;
+  const localStartIndex = (pagination.currentPage - 1) * rowsPerPage;
+  const visibleMatches = isSearchMode
+    ? sortedMatches.slice(localStartIndex, localStartIndex + rowsPerPage)
+    : sortedMatches;
+  const displayTotal = isSearchMode ? sortedMatches.length : pagination.total;
+  const displayLastPage = isSearchMode
+    ? Math.max(1, Math.ceil(displayTotal / rowsPerPage))
+    : pagination.lastPage;
+
+  const pageItems = getPageItems(pagination.currentPage, displayLastPage);
+  const appliedStatusLabel =
+    appliedStatus === "all" ? "matches" : `${appliedStatus} matches`;
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">Matches</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Browse and manage football match data
-          </p>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
-          <p className="text-sm font-medium text-slate-700">
-            Loading matches...
-          </p>
-        </div>
+      <div className="space-y-7">
+        {pageHeader}
+        <LoadingState />
       </div>
     );
   }
 
   return (
-    <div className="space-y-5 bg-slate-100/70">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Matches</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Browse and manage football match data
-        </p>
-      </div>
+    <div className="space-y-7">
+      {pageHeader}
 
-      <section className="rounded-3xl border border-slate-200/80 bg-slate-50 px-4 py-4 shadow-sm sm:px-5">
-        <div className="flex flex-col gap-4">
-          {/* Search gets its own row so it feels like the main table control */}
-          <div className="relative w-full">
-            <Search
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              aria-hidden="true"
-            />
-            <input
-              id="matches-search"
-              type="text"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search matches..."
-              className={clsx("w-full pl-9 pr-4", controlClassName)}
-            />
-          </div>
-
-          {/* Filters and actions are grouped separately to keep the toolbar clean */}
-          <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 xl:flex-row xl:items-end xl:justify-between">
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="flex min-w-33 flex-col gap-1 text-[11px] font-medium text-slate-500">
-                <span>Start date</span>
-                <input
-                  type="date"
-                  value={startDateFilter}
-                  onChange={(event) => setStartDateFilter(event.target.value)}
-                  className={controlClassName}
-                />
-              </label>
-              <label className="flex min-w-33 flex-col gap-1 text-[11px] font-medium text-slate-500">
-                <span>End date</span>
-                <input
-                  type="date"
-                  value={endDateFilter}
-                  onChange={(event) => setEndDateFilter(event.target.value)}
-                  className={controlClassName}
-                />
-              </label>
-              <label className="flex min-w-35 flex-col gap-1 text-[11px] font-medium text-slate-500">
-                <span>League</span>
-                <select
-                  value={selectedLeague}
-                  onChange={(event) => setSelectedLeague(event.target.value)}
-                  className={controlClassName}
-                >
-                  {leagueOptions.map((option) => (
-                    <option
-                      key={option}
-                      value={option === "All Leagues" ? "all" : option}
-                    >
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex min-w-35 flex-col gap-1 text-[11px] font-medium text-slate-500">
-                <span>Status</span>
-                <select
-                  value={selectedStatus}
-                  onChange={(event) => setSelectedStatus(event.target.value)}
-                  className={controlClassName}
-                >
-                  {statusFilterOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex min-w-37.5 flex-col gap-1 text-[11px] font-medium text-slate-500">
-                <span>Sort</span>
-                <select
-                  value={sortValue}
-                  onChange={(event) => setSortValue(event.target.value)}
-                  className={controlClassName}
-                >
-                  {sortOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-500">
+            <span>Search</span>
+            <div className="relative w-full">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                aria-hidden="true"
+              />
+              <input
+                id="matches-search"
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search current results by team, league, venue, or competition..."
+                className={clsx("w-full pl-9 pr-4", controlClassName)}
+              />
             </div>
+          </label>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleApplyFilters}
-                disabled={refreshing}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex min-w-32 flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <span>Start date</span>
+              <input
+                type="date"
+                value={startDateFilter}
+                onChange={(event) => setStartDateFilter(event.target.value)}
+                className={controlClassName}
+              />
+            </label>
+
+            <label className="flex min-w-32 flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <span>End date</span>
+              <input
+                type="date"
+                value={endDateFilter}
+                onChange={(event) => setEndDateFilter(event.target.value)}
+                className={controlClassName}
+              />
+            </label>
+
+            <label className="flex min-w-32 flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <span>Status</span>
+              <select
+                value={selectedStatus}
+                onChange={(event) => setSelectedStatus(event.target.value)}
+                className={controlClassName}
               >
-                <RefreshCw
-                  size={14}
-                  className={clsx(refreshing && "animate-spin")}
-                />
-                Apply
-              </button>
-              <button
-                type="button"
-                onClick={handleClearFilters}
-                className={secondaryButtonClassName}
+                {statusFilterOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex min-w-40 flex-col gap-1 text-[11px] font-medium text-slate-500">
+              <span>Sort</span>
+              <select
+                value={sortValue}
+                onChange={(event) => setSortValue(event.target.value)}
+                className={controlClassName}
               >
-                Clear
-              </button>
-            </div>
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              type="button"
+              onClick={handleApplyFilters}
+              disabled={refreshing}
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-3.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              <RefreshCw
+                size={14}
+                className={clsx(refreshing && "animate-spin")}
+              />
+              Apply
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className={secondaryButtonClassName}
+            >
+              Clear
+            </button>
           </div>
         </div>
       </section>
@@ -973,7 +963,9 @@ function Matches() {
         </div>
       )}
 
-      {!error && sortedMatches.length === 0 && (
+      {!error && refreshing && <LoadingState message="Updating matches..." />}
+
+      {!error && !refreshing && sortedMatches.length === 0 && (
         <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
           <p className="text-sm font-medium text-slate-700">
             No matches found.
@@ -981,14 +973,14 @@ function Matches() {
         </div>
       )}
 
-      {!error && sortedMatches.length > 0 && (
+      {!error && !refreshing && sortedMatches.length > 0 && (
         <>
           <div className="hidden rounded-3xl border border-slate-200 bg-white shadow-sm xl:block">
             <div className="overflow-x-auto rounded-3xl">
-              <table className="min-w-215 w-full table-fixed text-left">
+              <table className="min-w-full w-full table-fixed text-left">
                 <colgroup>
                   {columns.map((column) => (
-                    <col key={column.label} className={column.width} />
+                    <col key={column.label} style={{ width: column.width }} />
                   ))}
                 </colgroup>
 
@@ -1006,12 +998,11 @@ function Matches() {
                 </thead>
 
                 <tbody>
-                  {sortedMatches.map((match, index) => (
+                  {visibleMatches.map((match, index) => (
                     <tr
                       key={match.id}
-                      onClick={() => handleRowClick(match)}
                       className={clsx(
-                        "cursor-pointer border-b border-slate-100 transition-all duration-200 hover:bg-emerald-50/30 hover:shadow-[inset_3px_0_0_rgba(16,185,129,0.75)]",
+                        "border-b border-slate-100 transition-all duration-200 hover:bg-emerald-50/40",
                         index % 2 === 0 ? "bg-white" : "bg-slate-50/30",
                       )}
                     >
@@ -1049,11 +1040,10 @@ function Matches() {
           </div>
 
           <div className="space-y-3 xl:hidden">
-            {sortedMatches.map((match) => (
+            {visibleMatches.map((match) => (
               <article
                 key={match.id}
-                onClick={() => handleRowClick(match)}
-                className="cursor-pointer rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:border-emerald-200 hover:bg-slate-50 hover:shadow-md"
+                className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition-all duration-200 hover:border-emerald-200 hover:bg-slate-50 hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
@@ -1101,10 +1091,11 @@ function Matches() {
           <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm lg:flex-row lg:items-center lg:justify-between">
             <div className="text-sm text-slate-500">
               <p>
-                Showing {sortedMatches.length} of {pagination.total} matches
+                Showing {visibleMatches.length} of {displayTotal}{" "}
+                {appliedStatusLabel}
               </p>
               <p className="mt-0.5 font-medium text-slate-600">
-                Page {pagination.currentPage} of {pagination.lastPage}
+                Page {pagination.currentPage} of {displayLastPage}
               </p>
             </div>
 
@@ -1151,7 +1142,7 @@ function Matches() {
                 type="button"
                 onClick={() => handlePageChange(pagination.currentPage + 1)}
                 disabled={
-                  pagination.currentPage >= pagination.lastPage || refreshing
+                  pagination.currentPage >= displayLastPage || refreshing
                 }
                 className={secondaryButtonClassName}
               >
@@ -1169,167 +1160,6 @@ function Matches() {
         type="match"
         data={selectedMatch}
       />
-
-      <div
-        className={clsx(
-          "fixed inset-0 z-40 transition",
-          drawerOpen ? "pointer-events-auto" : "pointer-events-none",
-        )}
-      >
-        <div
-          onClick={() => setDrawerOpen(false)}
-          className={clsx(
-            "absolute inset-0 bg-slate-950/25 backdrop-blur-[2px] transition-opacity duration-300",
-            drawerOpen ? "opacity-100" : "opacity-0",
-          )}
-          role="presentation"
-        />
-
-        <aside
-          className={clsx(
-            "absolute right-0 top-0 h-full w-full border-l border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-out sm:w-120 lg:w-130",
-            drawerOpen ? "translate-x-0" : "translate-x-full",
-          )}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Match details"
-        >
-          {selectedMatch && (
-            <div className="flex h-full flex-col">
-              <div className="border-b border-slate-200 bg-white/95 px-5 py-5 backdrop-blur">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 space-y-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      Match details
-                    </p>
-
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                      <MatchCell match={selectedMatch} />
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setDrawerOpen(false)}
-                    className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
-                    aria-label="Close details panel"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <EventStatusBadge status={selectedMatch.status} />
-                  <button
-                    type="button"
-                    onClick={handleCopyFixtureId}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-                  >
-                    <Copy size={13} />
-                    {copiedFixtureId ? "Copied" : "Copy Fixture ID"}
-                  </button>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      League
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {selectedMatch.league || "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      Competition
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {selectedMatch.competition || "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      Venue
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {selectedMatch.ground || "Venue TBC"}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {selectedMatch.field || "Field TBC"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      Match date
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {selectedMatch.dateLabel}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {selectedMatch.timeLabel} {selectedMatch.timezoneLabel}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      Season
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {selectedMatch.season || "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      Matchsheet status
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {selectedMatch.matchsheetStatus || "—"}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      Fixture ID
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">
-                      {selectedMatch.fixture_id}
-                    </p>
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
-                      Result
-                    </p>
-                    <p
-                      className={clsx(
-                        "mt-2 text-sm font-semibold",
-                        selectedMatch.hasResult
-                          ? "text-slate-900"
-                          : "text-slate-400",
-                      )}
-                    >
-                      {selectedMatch.result}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="sticky bottom-0 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
-                <p className="text-sm text-slate-500">
-                  Use the Report button in the matches table to generate a
-                  report.
-                </p>
-              </div>
-            </div>
-          )}
-        </aside>
-      </div>
     </div>
   );
 }

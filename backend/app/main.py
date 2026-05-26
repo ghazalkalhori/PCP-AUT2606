@@ -1,6 +1,7 @@
 import os
+import json
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException
@@ -61,7 +62,6 @@ class JobRequest(BaseModel):
     tone: str = "professional"
 
 
-
 class ReportUpdate(BaseModel):
     content: str
 
@@ -70,6 +70,7 @@ class ReportCreate(BaseModel):
     fixture_id: Optional[str] = None
     report_type: str
     tone: str = "professional"
+    source_data: Optional[dict[str, Any]] = None
     content: str
     status: str = "draft"
 
@@ -77,14 +78,24 @@ class ReportCreate(BaseModel):
 class ReportPatch(BaseModel):
     content: Optional[str] = None
     status: Optional[str] = None
+    source_data: Optional[dict[str, Any]] = None
 
 
 def serialize_report(report: models.Report):
+    source_data = None
+
+    if getattr(report, "source_data", None):
+        try:
+            source_data = json.loads(report.source_data)
+        except json.JSONDecodeError:
+            source_data = None
+
     return {
         "id": report.id,
         "fixture_id": report.fixture_id,
         "report_type": report.report_type,
         "tone": report.tone,
+        "source_data": source_data,
         "content": report.content,
         "status": report.status,
         "created_at": getattr(report, "created_at", None),
@@ -171,10 +182,25 @@ Status: {data["event_status"]}
 Tone: {request.tone}
 """
 
+    source_data = {
+        "kind": "match",
+        "homeTeam": data.get("home_team"),
+        "awayTeam": data.get("away_team"),
+        "league": data.get("league_name"),
+        "competition": data.get("competition_name"),
+        "venue": data.get("ground_name"),
+        "matchDate": data.get("local_start_date"),
+        "matchTime": data.get("local_start_time"),
+        "status": data.get("event_status"),
+        "contentType": request.report_type,
+        "writingStyle": request.tone,
+    }
+
     new_report = models.Report(
         fixture_id=request.fixture_id,
         report_type=request.report_type,
         tone=request.tone,
+        source_data=json.dumps(source_data),
         content=report_text,
         status="draft",
     )
@@ -214,6 +240,7 @@ def create_report(
         fixture_id=request.fixture_id,
         report_type=request.report_type,
         tone=request.tone,
+        source_data=json.dumps(request.source_data) if request.source_data else None,
         content=request.content,
         status=request.status,
     )
@@ -325,8 +352,18 @@ def patch_report(
     if request.content is not None:
         report.content = request.content
 
+    if request.source_data is not None:
+        report.source_data = json.dumps(request.source_data)
+
     if request.status is not None:
-        allowed_statuses = {"processing", "draft", "review", "approved", "published", "failed"}
+        allowed_statuses = {
+            "processing",
+            "draft",
+            "review",
+            "approved",
+            "published",
+            "failed",
+        }
 
         if request.status not in allowed_statuses:
             raise HTTPException(status_code=400, detail="Invalid report status")
@@ -438,6 +475,7 @@ def get_dashboard(
 def match_list(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    status: Optional[str] = None,
     page: int = 1,
     user: str = Depends(get_current_user),
 ):
@@ -445,6 +483,7 @@ def match_list(
     return get_fixtures(
         start_date=start_date,
         end_date=end_date,
+        status=status,
         page=page,
     )
 
@@ -464,3 +503,35 @@ def league_list(
         end_date=end_date,
         status=status,
     )
+
+
+# remove this endpoint after debugging - it is used to analyze the different match statuses in Dribl data
+from collections import Counter
+
+
+@app.get("/debug/match-statuses")
+def debug_match_statuses(user: str = Depends(get_current_user)):
+    page = 1
+    event_statuses = Counter()
+    matchsheet_statuses = Counter()
+
+    while True:
+        result = get_fixtures(page=page)
+        fixtures = result.get("data", [])
+
+        for fixture in fixtures:
+            attrs = fixture.get("attributes", {})
+            event_statuses[attrs.get("event_status")] += 1
+            matchsheet_statuses[attrs.get("matchsheet_status")] += 1
+
+        last_page = result.get("meta", {}).get("last_page", page)
+
+        if page >= last_page:
+            break
+
+        page += 1
+
+    return {
+        "event_statuses": dict(event_statuses),
+        "matchsheet_statuses": dict(matchsheet_statuses),
+    }

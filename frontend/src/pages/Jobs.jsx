@@ -8,82 +8,15 @@ import {
   Clock,
   FileText,
   Filter,
+  Loader2,
   RefreshCw,
   Search,
-  Sparkles,
   XCircle,
 } from "lucide-react";
 import { clsx } from "clsx";
-import StatusBadge from "../components/StatusBadge.jsx";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-
-const mockJobs = [
-  {
-    id: "JOB-1042",
-    title: "Youth U18 Round Summary",
-    source: "Youth U18",
-    type: "League Summary",
-    status: "Completed",
-    date: "14 May 2026",
-    time: "4:28 PM",
-    words: 624,
-    report:
-      "### Youth U18 Round Summary\n\nYouth U18 delivered another competitive round with several close matches and strong attacking performances across the league. The round showed good balance between teams, with results highlighting both defensive discipline and late-game pressure.\n\n#### Key Overview\n\nThe league continues to show strong development quality, with multiple teams remaining competitive. Based on the available match data, the round can be summarised as active, balanced, and suitable for further editorial review.\n\n#### Conclusion\n\nThis summary is a demo-generated report used to test the jobs and report review workflow before the final LLM integration is completed.",
-    icon: "completed",
-  },
-  {
-    id: "JOB-1041",
-    title: "Woonona Sharks vs Bellambi FC",
-    source: "1st Grade Men",
-    type: "Post-Match",
-    status: "Processing",
-    date: "14 May 2026",
-    time: "4:12 PM",
-    words: null,
-    report: "Report is still processing.",
-    icon: "processing",
-  },
-  {
-    id: "JOB-1040",
-    title: "2nd Grade Men Weekly Preview",
-    source: "2nd Grade Men",
-    type: "Pre-Match",
-    status: "Approved",
-    date: "14 May 2026",
-    time: "3:54 PM",
-    words: 438,
-    report:
-      "### 2nd Grade Men Weekly Preview\n\nThe upcoming 2nd Grade Men fixtures are expected to provide a competitive round of football, with teams looking to build momentum and improve their position in the competition.\n\n#### Match Context\n\nBased on the available fixture data, the round includes several important matchups where consistency, defensive structure, and early control will likely be key factors.\n\n#### Conclusion\n\nThis preview is ready for editorial review and approval as part of the Reporta AI workflow.",
-    icon: "approved",
-  },
-  {
-    id: "JOB-1039",
-    title: "Pascoe Cup Match Report",
-    source: "1st Grade Men",
-    type: "Post-Match",
-    status: "Failed",
-    date: "13 May 2026",
-    time: "7:40 PM",
-    words: null,
-    report: "Report generation failed.",
-    icon: "failed",
-  },
-  {
-    id: "JOB-1038",
-    title: "Winter 2026 League Summary",
-    source: "Home and Away",
-    type: "League Summary",
-    status: "Completed",
-    date: "13 May 2026",
-    time: "6:22 PM",
-    words: 712,
-    report:
-      "### Winter 2026 League Summary\n\nThe Winter 2026 competition has shown steady activity across the current fixtures, with participating teams continuing to build rhythm throughout the season.\n\n#### Competition Overview\n\nThe league remains active and competitive, with match results contributing to an evolving picture of team performance and seasonal momentum.\n\n#### Conclusion\n\nThis report is a demo league summary generated for testing the jobs page and generated report page workflow.",
-    icon: "completed",
-  },
-];
 
 const typeBadgeStyles = {
   "Post-Match": "bg-purple-50 text-purple-700 ring-purple-100",
@@ -99,24 +32,98 @@ const statusOptions = [
   "Failed",
 ];
 
-function JobStatusIcon({ icon }) {
-  if (icon === "processing") {
+const pageHeader = (
+  <div>
+    <h1 className="text-2xl font-bold text-slate-900">Jobs</h1>
+    <p className="mt-1 text-sm text-slate-500">
+      Track AI generation jobs and report statuses
+    </p>
+  </div>
+);
+
+const controlClassName =
+  "h-9 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100";
+
+const secondaryButtonClassName =
+  "inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60";
+
+function formatReportType(type) {
+  if (type?.includes("league")) return "League Summary";
+  if (type?.includes("pre")) return "Pre-Match";
+  return "Post-Match";
+}
+
+function formatReportStatus(status) {
+  if (status === "draft") return "Draft";
+  if (status === "approved") return "Approved";
+  if (status === "published") return "Published";
+  if (status === "failed") return "Failed";
+  return "Processing";
+}
+
+function formatStoredDateTime(value) {
+  if (!value) return "Created at unknown time";
+
+  const date = new Date(value.endsWith("Z") ? value : `${value}Z`);
+
+  if (Number.isNaN(date.getTime())) return "Created at unknown time";
+
+  const formatted = date.toLocaleString("en-AU", {
+    timeZone: "Australia/Sydney",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  return `Created at ${formatted.replace(",", " at")}`;
+}
+
+function JobStatusIcon({ status }) {
+  if (status === "Processing") {
     return <RefreshCw size={17} className="animate-spin text-blue-500" />;
   }
 
-  if (icon === "approved") {
-    return <CheckCircle size={17} className="text-slate-700" />;
-  }
-
-  if (icon === "completed") {
+  if (status === "Approved" || status === "Published") {
     return <CheckCircle size={17} className="text-emerald-500" />;
   }
 
-  if (icon === "failed") {
+  if (status === "Draft") {
+    return <CheckCircle size={17} className="text-amber-500" />;
+  }
+
+  if (status === "Completed") {
+    return <CheckCircle size={17} className="text-blue-500" />;
+  }
+
+  if (status === "Failed") {
     return <XCircle size={17} className="text-red-500" />;
   }
 
   return <Clock size={17} className="text-slate-400" />;
+}
+
+function JobStatusBadge({ status }) {
+  const styles = {
+    Draft: "bg-amber-50 text-amber-700 ring-amber-100",
+    Approved: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    Completed: "bg-blue-50 text-blue-700 ring-blue-100",
+    Processing: "bg-blue-50 text-blue-700 ring-blue-100",
+    Failed: "bg-red-50 text-red-700 ring-red-100",
+  };
+
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1",
+        styles[status] || "bg-slate-50 text-slate-600 ring-slate-100",
+      )}
+    >
+      {status}
+    </span>
+  );
 }
 
 function EmptyState() {
@@ -129,6 +136,19 @@ function EmptyState() {
       <p className="mt-1 text-sm text-slate-500">
         Try changing the search text or status filter.
       </p>
+    </div>
+  );
+}
+
+function LoadingState() {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
+      <Loader2
+        size={22}
+        className="mx-auto mb-3 animate-spin text-emerald-500"
+        aria-hidden="true"
+      />
+      <p className="text-sm font-semibold text-slate-700">Loading Jobs...</p>
     </div>
   );
 }
@@ -168,32 +188,30 @@ function Jobs() {
             ? content.trim().split(/\s+/).length
             : null;
 
+          const sourceData = report.source_data || {};
+          const homeTeam = sourceData.homeTeam || "";
+          const awayTeam = sourceData.awayTeam || "";
+          const title =
+            homeTeam && awayTeam
+              ? `${homeTeam} vs ${awayTeam}`
+              : report.fixture_id || "Generated Report";
+          const source =
+            sourceData.league || sourceData.competition || "Not provided";
+          const createdLabel = formatStoredDateTime(report.created_at);
+
           return {
             id: `REPORT-${report.id}`,
             reportId: report.id,
-            title: report.fixture_id || "Generated Report",
-            source: report.fixture_id || "Saved Report",
-            type: report.report_type?.includes("league")
-              ? "League Summary"
-              : report.report_type?.includes("pre")
-                ? "Pre-Match"
-                : "Post-Match",
-            status:
-              report.status === "draft"
-                ? "Draft"
-                : report.status === "approved"
-                  ? "Approved"
-                  : report.status === "published"
-                    ? "Published"
-                    : report.status === "failed"
-                      ? "Failed"
-                      : "Processing",
-            date: report.created_at
-              ? new Date(report.created_at).toLocaleDateString()
-              : "Unknown date",
-            time: report.created_at
-              ? new Date(report.created_at).toLocaleTimeString()
-              : "Unknown time",
+            title,
+            source,
+            type: formatReportType(report.report_type),
+            status: formatReportStatus(report.status),
+            createdLabel,
+            sourceData,
+            reportType: report.report_type,
+            tone: report.tone,
+            createdAt: report.created_at,
+            updatedAt: report.updated_at,
             words,
             report: content,
             icon:
@@ -262,110 +280,118 @@ function Jobs() {
       state: {
         type: job.type === "League Summary" ? "league" : "match",
         reportId: job.reportId,
-        contentType: job.type,
-        writingStyle: "Professional",
+        reportStatus: job.status,
+        createdAt: job.createdAt,
+        updatedAt: job.updatedAt,
+        contentType: job.reportType || job.type,
+        writingStyle:
+          job.tone || job.sourceData?.writingStyle || "Not provided",
         generatedReport: job.report,
-        model: "Saved Report",
         data: {
-          name: job.source,
-          competition: job.source,
-          date: job.date,
-          time: job.time,
-          homeTeam: { name: job.title.split(" vs ")[0] || job.title },
-          awayTeam: { name: job.title.split(" vs ")[1] || "Opponent" },
+          source_data: job.sourceData,
+          name: job.title,
+          league: job.sourceData?.league || job.source,
+          competition: job.sourceData?.competition || job.source,
+          date: job.sourceData?.matchDate || "Not provided",
+          time: job.sourceData?.matchTime || "Not provided",
+          homeTeam: {
+            name:
+              job.sourceData?.homeTeam ||
+              job.title.split(" vs ")[0] ||
+              job.title,
+          },
+          awayTeam: {
+            name:
+              job.sourceData?.awayTeam ||
+              job.title.split(" vs ")[1] ||
+              "Opponent",
+          },
         },
       },
     });
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-            Jobs
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Track AI generation jobs and report statuses
-          </p>
-        </div>
-
-        <div className="inline-flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-          <Sparkles size={15} />
-          Saved reports from database{" "}
-        </div>
+        {pageHeader}
       </div>
 
-      <section className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-4 shadow-sm sm:px-5">
-        <div className="relative">
-          <Search
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-            aria-hidden="true"
-          />
-          <input
-            id="jobs-search"
-            type="text"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search jobs by ID, source, type, or status..."
-            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-4 pl-9 text-sm text-slate-700 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-          />
-        </div>
-
-        <div className="relative mt-4 border-t border-slate-200 pt-4">
-          <button
-            type="button"
-            onClick={() => setFilterOpen((isOpen) => !isOpen)}
-            className="inline-flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
-          >
-            <Filter size={15} />
-            Filter
-            {selectedStatuses.length > 0 && (
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                {selectedStatuses.length}
-              </span>
-            )}
-          </button>
-
-          {filterOpen && (
-            <div className="absolute left-0 top-16 z-20 w-64 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
-              <div className="mb-3 flex items-center justify-between">
-                <p className="text-sm font-semibold text-slate-800">
-                  Filter by status
-                </p>
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="text-xs font-medium text-slate-400 hover:text-slate-700"
-                >
-                  Clear
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {statusOptions.map((status) => (
-                  <label
-                    key={status}
-                    className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-                  >
-                    <span className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={selectedStatuses.includes(status)}
-                        onChange={() => toggleStatus(status)}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      {status}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      {counts[status] || 0}
-                    </span>
-                  </label>
-                ))}
-              </div>
+      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-500">
+            <span>Search</span>
+            <div className="relative w-full">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                aria-hidden="true"
+              />
+              <input
+                id="jobs-search"
+                type="text"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search jobs by ID, source, type, or status..."
+                className={clsx("w-full pl-9 pr-4", controlClassName)}
+              />
             </div>
-          )}
+          </label>
+
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setFilterOpen((isOpen) => !isOpen)}
+              className={secondaryButtonClassName}
+            >
+              <Filter size={15} />
+              Filter
+              {selectedStatuses.length > 0 && (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                  {selectedStatuses.length}
+                </span>
+              )}
+            </button>
+
+            {filterOpen && (
+              <div className="absolute right-0 top-11 z-20 w-64 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-slate-800">
+                    Filter by status
+                  </p>
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="text-xs font-medium text-slate-400 hover:text-slate-700"
+                  >
+                    Clear
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {statusOptions.map((status) => (
+                    <label
+                      key={status}
+                      className="flex cursor-pointer items-center justify-between gap-3 rounded-xl px-2 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedStatuses.includes(status)}
+                          onChange={() => toggleStatus(status)}
+                          className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        {status}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {counts[status] || 0}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
@@ -375,17 +401,16 @@ function Jobs() {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-sm text-slate-500">
-        <p>
-          Showing {jobs.length} of {savedJobs.length} jobs
-        </p>
-        <p>{loading ? "Loading..." : "Loaded from database"}</p>{" "}
-      </div>
+      {!loading && (
+        <div className="flex items-center justify-between text-sm text-slate-500">
+          <p>
+            Showing {jobs.length} of {savedJobs.length} jobs
+          </p>
+        </div>
+      )}
 
       {loading ? (
-        <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
-          Loading reports...
-        </div>
+        <LoadingState />
       ) : jobs.length === 0 ? (
         <EmptyState />
       ) : (
@@ -397,11 +422,11 @@ function Jobs() {
                 type="button"
                 onClick={() => handleOpenJob(job)}
                 disabled={job.status === "Processing"}
-                className="flex w-full flex-col gap-4 px-5 py-4 text-left transition hover:bg-emerald-50/30 disabled:cursor-wait disabled:hover:bg-white sm:flex-row sm:items-center sm:justify-between"
+                className="flex w-full flex-col gap-4 px-5 py-4 text-left transition hover:bg-emerald-50/40 disabled:cursor-wait disabled:hover:bg-white sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-100">
-                    <JobStatusIcon icon={job.icon} />
+                    <JobStatusIcon status={job.status} />
                   </div>
 
                   <div className="min-w-0">
@@ -424,9 +449,7 @@ function Jobs() {
                       <span>•</span>
                       <span>{job.source}</span>
                       <span>•</span>
-                      <span>
-                        {job.date} at {job.time}
-                      </span>
+                      <span>{job.createdLabel}</span>
                     </div>
                   </div>
                 </div>
@@ -437,7 +460,7 @@ function Jobs() {
                     {job.words ? `${job.words} words` : "Pending"}
                   </div>
 
-                  <StatusBadge status={job.status} />
+                  <JobStatusBadge status={job.status} />
                 </div>
               </button>
             ))}

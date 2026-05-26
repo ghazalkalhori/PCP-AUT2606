@@ -5,20 +5,20 @@ import { ArrowLeft, SearchX } from "lucide-react";
 
 function NotFound() {
   return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center px-6">
-      <section className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white px-8 py-10 text-center shadow-sm">
+    <main className="flex min-h-screen items-center justify-center bg-slate-100 px-4 py-6">
+      <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white px-8 py-10 text-center shadow-xl">
         {/* Icon */}
         <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
           <SearchX size={32} />
         </div>
 
         {/* Error code */}
-        <p className="mb-3 text-sm font-semibold uppercase tracking-[0.25em] text-emerald-600">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-emerald-600">
           404 Error
         </p>
 
         {/* Title */}
-        <h1 className="mb-3 text-3xl font-bold tracking-tight text-slate-950">
+        <h1 className="mb-3 text-3xl font-bold text-slate-950">
           Page not found
         </h1>
 

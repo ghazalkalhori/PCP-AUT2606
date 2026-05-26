@@ -2,12 +2,70 @@
 // It loads dashboard data from FastAPI using the saved JWT token.
 
 import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import StatusBadge from "../components/StatusBadge.jsx";
 import { getAuthToken } from "../utils/auth.js";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+
+const pageHeader = (
+  <div>
+    <h1 className="m-0 text-2xl font-bold text-gray-900">Dashboard</h1>
+    <p className="mt-1 text-sm text-gray-500">
+      Overview of AI content generation activity
+    </p>
+  </div>
+);
+
+function LoadingState() {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
+      <Loader2
+        size={22}
+        className="mx-auto mb-3 animate-spin text-emerald-500"
+        aria-hidden="true"
+      />
+      <p className="text-sm font-semibold text-slate-700">
+        Loading Dashboard...
+      </p>
+    </div>
+  );
+}
+
+function ErrorState({ message }) {
+  return (
+    <div className="rounded-3xl border border-red-100 bg-red-50 px-6 py-10 text-center shadow-sm">
+      <p className="text-sm font-semibold text-red-700">{message}</p>
+    </div>
+  );
+}
+
+function DashboardStatusBadge({ status }) {
+  const normalizedStatus = String(status || "completed").toLowerCase();
+
+  const styles = {
+    draft: "bg-amber-50 text-amber-700 ring-amber-100",
+    approved: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    completed: "bg-blue-50 text-blue-700 ring-blue-100",
+    processing: "bg-blue-50 text-blue-700 ring-blue-100",
+    failed: "bg-red-50 text-red-700 ring-red-100",
+  };
+
+  const label = normalizedStatus
+    .replace("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+        styles[normalizedStatus] || "bg-slate-50 text-slate-600 ring-slate-100"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -68,7 +126,10 @@ export default function Dashboard() {
         let matchesCount = data?.stats?.matches ?? 0;
         let leaguesCount = data?.stats?.leagues ?? 0;
 
-        if (matchesResponse.status === "fulfilled" && matchesResponse.value.ok) {
+        if (
+          matchesResponse.status === "fulfilled" &&
+          matchesResponse.value.ok
+        ) {
           const matchesData = await matchesResponse.value.json();
 
           matchesCount =
@@ -79,7 +140,10 @@ export default function Dashboard() {
             matchesCount;
         }
 
-        if (leaguesResponse.status === "fulfilled" && leaguesResponse.value.ok) {
+        if (
+          leaguesResponse.status === "fulfilled" &&
+          leaguesResponse.value.ok
+        ) {
           const leaguesData = await leaguesResponse.value.json();
 
           leaguesCount =
@@ -107,11 +171,21 @@ export default function Dashboard() {
   }, []);
 
   if (loading) {
-    return <p style={{ padding: 32 }}>Loading dashboard...</p>;
+    return (
+      <div className="space-y-7">
+        {pageHeader}
+        <LoadingState />
+      </div>
+    );
   }
 
   if (error) {
-    return <p style={{ padding: 32, color: "red" }}>{error}</p>;
+    return (
+      <div className="space-y-7">
+        {pageHeader}
+        <ErrorState message={error} />
+      </div>
+    );
   }
 
   // Create stat cards from backend response
@@ -142,36 +216,12 @@ export default function Dashboard() {
   const recentReports = dashboardData?.recent_reports || [];
 
   return (
-    <div
-      style={{
-        padding: "32px 36px",
-        background: "#F8FAFC",
-        minHeight: "100vh",
-        fontFamily: "system-ui, sans-serif",
-      }}
-    >
+    <div className="space-y-7">
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1
-          style={{ margin: 0, fontSize: 24, fontWeight: 700, color: "#111827" }}
-        >
-          Dashboard
-        </h1>
-
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: "#6B7280" }}>
-          Overview of AI content generation activity
-        </p>
-      </div>
+      {pageHeader}
 
       {/* Stats */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 16,
-          marginBottom: 28,
-        }}
-      >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s, i) => (
           <div
             key={s.label}
@@ -212,13 +262,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Jobs */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: 20,
-        }}
-      >
+      <div>
         <div
           style={{
             background: "white",
@@ -311,7 +355,9 @@ export default function Dashboard() {
                   </div>
 
                   <div style={{ flexShrink: 0 }}>
-                    <StatusBadge status={report.status || "completed"} />
+                    <DashboardStatusBadge
+                      status={report.status || "completed"}
+                    />
                   </div>
                 </div>
               ))

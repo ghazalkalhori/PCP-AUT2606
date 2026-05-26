@@ -1,8 +1,7 @@
 // Leagues page loads current league data from the backend.
 
-import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Search, Sparkles, Trophy } from "lucide-react";
-import { clsx } from "clsx";
+import { useEffect, useState } from "react";
+import { Loader2, Sparkles, Trophy } from "lucide-react";
 import LeagueSummaryModal from "../components/LeagueSummaryModal";
 
 const API_BASE_URL =
@@ -16,6 +15,15 @@ const columns = [
   "STATUS",
   "ACTIONS",
 ];
+
+const pageHeader = (
+  <div>
+    <h1 className="text-2xl font-bold text-slate-900">Leagues</h1>
+    <p className="mt-1 text-sm text-slate-500">
+      Browse current football leagues available
+    </p>
+  </div>
+);
 
 function getAuthHeaders() {
   const token = localStorage.getItem("reporta_token");
@@ -67,6 +75,21 @@ function ActiveBadge({ status }) {
   );
 }
 
+function LoadingState() {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
+      <Loader2
+        size={22}
+        className="mx-auto mb-3 animate-spin text-emerald-500"
+        aria-hidden="true"
+      />
+      <p className="text-sm font-semibold text-slate-700">
+        Loading Leagues Data...
+      </p>
+    </div>
+  );
+}
+
 function SummaryButton({ onClick }) {
   return (
     <button
@@ -83,9 +106,7 @@ function SummaryButton({ onClick }) {
 function Leagues() {
   const [leagues, setLeagues] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedLeague, setSelectedLeague] = useState(null);
 
@@ -130,37 +151,12 @@ function Leagues() {
       setLeagues([]);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   }
 
   useEffect(() => {
     fetchLeagues();
   }, []);
-
-  const filteredLeagues = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-
-    if (!query) return leagues;
-
-    return leagues.filter((league) =>
-      [
-        league.name,
-        league.competition,
-        league.season,
-        league.tenant,
-        league.status,
-      ]
-        .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query)),
-    );
-  }, [leagues, searchTerm]);
-
-  function handleRefresh() {
-    setError("");
-    setRefreshing(true);
-    fetchLeagues();
-  }
 
   function handleSummaryClick(league) {
     setSelectedLeague(league);
@@ -169,49 +165,16 @@ function Leagues() {
 
   if (loading) {
     return (
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
-        Loading leagues...
+      <div className="space-y-7">
+        {pageHeader}
+        <LoadingState />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-950">
-            Leagues
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Browse current football leagues available from Dribl fixtures
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-wait disabled:opacity-70"
-        >
-          <RefreshCw size={14} className={clsx(refreshing && "animate-spin")} />
-          Refresh
-        </button>
-      </div>
-
-      <div className="relative">
-        <Search
-          size={16}
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-          aria-hidden="true"
-        />
-        <input
-          type="text"
-          value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
-          placeholder="Search leagues..."
-          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-4 pl-9 text-sm text-slate-700 shadow-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-        />
-      </div>
+    <div className="space-y-7">
+      {pageHeader}
 
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -219,9 +182,14 @@ function Leagues() {
         </div>
       )}
 
-      <p className="text-sm text-slate-500">
-        Showing {filteredLeagues.length} of {leagues.length} leagues
-      </p>
+      {!error && (
+        <div className="flex items-center justify-between text-sm text-slate-500">
+          <p>
+            Showing {leagues.length} of {leagues.length} leagues
+          </p>
+          <p>Loaded from Dribl fixtures</p>
+        </div>
+      )}
 
       <div className="hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm md:block">
         <table className="w-full table-fixed text-left">
@@ -239,10 +207,10 @@ function Leagues() {
           </thead>
 
           <tbody>
-            {filteredLeagues.map((league) => (
+            {leagues.map((league) => (
               <tr
                 key={league.id}
-                className="border-b border-slate-100 transition hover:bg-emerald-50/30 last:border-b-0"
+                className="border-b border-slate-100 transition hover:bg-emerald-50/40 last:border-b-0"
               >
                 <td className="px-4 py-3 align-middle">
                   <LeagueCell league={league} />
@@ -272,7 +240,7 @@ function Leagues() {
       </div>
 
       <div className="space-y-4 md:hidden">
-        {filteredLeagues.map((league) => (
+        {leagues.map((league) => (
           <div
             key={league.id}
             className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
@@ -307,7 +275,7 @@ function Leagues() {
         ))}
       </div>
 
-      {!error && filteredLeagues.length === 0 && (
+      {!error && leagues.length === 0 && (
         <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-sm">
           No leagues found.
         </div>
