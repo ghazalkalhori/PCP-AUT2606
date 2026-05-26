@@ -140,10 +140,15 @@ function GeneratedReport() {
 
     if (
       normalizedReportStatus === "draft" ||
-      normalizedReportStatus === "complete" ||
       normalizedReportStatus === "review"
     ) {
       setDraftSaved(true);
+      setApproved(false);
+      return;
+    }
+
+    if (normalizedReportStatus === "complete") {
+      setDraftSaved(false);
       setApproved(false);
     }
   }, [normalizedReportStatus]);
@@ -195,8 +200,14 @@ function GeneratedReport() {
 
   const reportData = data?.source_data || data || {};
   const isLeagueSummary = type === "league" || reportData?.kind === "league";
-  const homeTeam = displayValue(reportData?.homeTeam || data?.homeTeam, "");
-  const awayTeam = displayValue(reportData?.awayTeam || data?.awayTeam, "");
+  const homeTeam = displayValue(
+    reportData?.homeTeam || reportData?.homeClub || data?.homeTeam,
+    "",
+  );
+  const awayTeam = displayValue(
+    reportData?.awayTeam || reportData?.awayClub || data?.awayTeam,
+    "",
+  );
   const fallbackTitle = data?.name || data?.fixtureId || "Saved Report";
 
   const matchTitle =

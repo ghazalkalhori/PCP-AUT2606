@@ -24,6 +24,7 @@ const typeBadgeStyles = {
 
 const statusOptions = [
   "Complete",
+  "Draft",
   "Approved",
   "Published",
   "Processing",
@@ -52,7 +53,8 @@ function formatReportType(type) {
 }
 
 function formatReportStatus(status) {
-  if (status === "draft") return "Complete";
+  if (status === "complete") return "Complete";
+  if (status === "draft") return "Draft";
   if (status === "approved") return "Approved";
   if (status === "published") return "Published";
   if (status === "failed") return "Failed";
@@ -79,6 +81,50 @@ function formatStoredDateTime(value) {
   return `Created at ${formatted.replace(",", " at")}`;
 }
 
+function displaySourceValue(value) {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  if (typeof value === "object") {
+    return (
+      value.name ||
+      value.title ||
+      value.club ||
+      value.team ||
+      Object.values(value).filter(Boolean).map(String).join(" - ")
+    );
+  }
+
+  return "";
+}
+
+function getReportTitle(report, sourceData) {
+  if (sourceData.kind === "league") {
+    const leagueTitle =
+      displaySourceValue(sourceData.leagueName) ||
+      displaySourceValue(sourceData.league) ||
+      displaySourceValue(sourceData.competition);
+
+    return leagueTitle ? `${leagueTitle} Summary` : `League Summary #${report.id}`;
+  }
+
+  const homeTeam =
+    displaySourceValue(sourceData.homeTeam) ||
+    displaySourceValue(sourceData.homeClub);
+  const awayTeam =
+    displaySourceValue(sourceData.awayTeam) ||
+    displaySourceValue(sourceData.awayClub);
+
+  if (homeTeam && awayTeam) {
+    return `${homeTeam} vs ${awayTeam}`;
+  }
+
+  return `Match Report #${report.id}`;
+}
+
 function JobStatusIcon({ status }) {
   if (status === "Processing") {
     return <RefreshCw size={17} className="animate-spin text-blue-500" />;
@@ -92,6 +138,10 @@ function JobStatusIcon({ status }) {
     return <CheckCircle size={17} className="text-blue-500" />;
   }
 
+  if (status === "Draft") {
+    return <CheckCircle size={17} className="text-amber-500" />;
+  }
+
   if (status === "Failed") {
     return <XCircle size={17} className="text-red-500" />;
   }
@@ -102,7 +152,9 @@ function JobStatusIcon({ status }) {
 function JobStatusBadge({ status }) {
   const styles = {
     Approved: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+    Published: "bg-emerald-50 text-emerald-700 ring-emerald-100",
     Complete: "bg-blue-50 text-blue-700 ring-blue-100",
+    Draft: "bg-amber-50 text-amber-700 ring-amber-100",
     Processing: "bg-blue-50 text-blue-700 ring-blue-100",
     Failed: "bg-red-50 text-red-700 ring-red-100",
   };
@@ -184,21 +236,23 @@ function Jobs() {
           : null;
 
         const sourceData = report.source_data || {};
-        const homeTeam = sourceData.homeTeam || "";
-        const awayTeam = sourceData.awayTeam || "";
-        const leagueTitle =
-          sourceData.leagueName ||
-          sourceData.league ||
-          sourceData.competition ||
-          "";
-        const title =
-          sourceData.kind === "league" && leagueTitle
-            ? leagueTitle
-            : homeTeam && awayTeam
-              ? `${homeTeam} vs ${awayTeam}`
-              : report.fixture_id || "Generated Report";
+        const title = getReportTitle(report, sourceData);
         const source =
-          sourceData.league || sourceData.competition || "Not provided";
+          displaySourceValue(sourceData.league) ||
+          displaySourceValue(sourceData.competition) ||
+          "Not provided";
+        const dateTime = [sourceData.matchDate, sourceData.matchTime]
+          .filter(Boolean)
+          .join(" at ");
+        const detailParts =
+          sourceData.kind === "league"
+            ? [
+                source,
+                sourceData.roundLabel || sourceData.round,
+                report.report_type,
+              ]
+            : [source, dateTime, formatReportType(report.report_type)];
+        const details = detailParts.filter(Boolean).join(" • ");
         const createdLabel = formatStoredDateTime(report.created_at);
 
         return {
@@ -206,6 +260,7 @@ function Jobs() {
           reportId: report.id,
           title,
           source,
+          details,
           type: formatReportType(report.report_type),
           status: formatReportStatus(report.status),
           createdLabel,
@@ -276,7 +331,7 @@ function Jobs() {
 
       const matchesSearch =
         !query ||
-        [job.title, job.id, job.type, job.source, job.status]
+        [job.title, job.id, job.type, job.source, job.details, job.status]
           .filter(Boolean)
           .some((value) => value.toLowerCase().includes(query));
 
@@ -319,13 +374,15 @@ function Jobs() {
           time: job.sourceData?.matchTime || "Not provided",
           homeTeam: {
             name:
-              job.sourceData?.homeTeam ||
+              displaySourceValue(job.sourceData?.homeTeam) ||
+              displaySourceValue(job.sourceData?.homeClub) ||
               job.title.split(" vs ")[0] ||
               job.title,
           },
           awayTeam: {
             name:
-              job.sourceData?.awayTeam ||
+              displaySourceValue(job.sourceData?.awayTeam) ||
+              displaySourceValue(job.sourceData?.awayClub) ||
               job.title.split(" vs ")[1] ||
               "Opponent",
           },
@@ -470,7 +527,7 @@ function Jobs() {
                     <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-400">
                       <span>{job.id}</span>
                       <span>•</span>
-                      <span>{job.source}</span>
+                      <span>{job.details || job.source}</span>
                       <span>•</span>
                       <span>{job.createdLabel}</span>
                     </div>

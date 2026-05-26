@@ -173,10 +173,15 @@ def build_match_source_data(
     tone: str,
     score: str,
 ) -> dict[str, Any]:
+    home_team = data.get("home_club") or data.get("home_team")
+    away_team = data.get("away_club") or data.get("away_team")
+
     return {
         "kind": "match",
-        "homeTeam": data.get("home_team"),
-        "awayTeam": data.get("away_team"),
+        "homeTeam": home_team,
+        "awayTeam": away_team,
+        "homeClub": data.get("home_club"),
+        "awayClub": data.get("away_club"),
         "league": data.get("league_name"),
         "competition": data.get("competition_name"),
         "venue": data.get("ground_name"),
@@ -285,7 +290,7 @@ def run_report_generation_background(
             raise ValueError("The LLM did not return report content.")
 
         report.content = report_text
-        report.status = "draft"
+        report.status = "complete"
 
         source_data = build_match_source_data(data, report_type, tone, score)
         report.source_data = json.dumps(source_data)
@@ -323,7 +328,7 @@ def run_league_summary_generation_background(report_id: int):
             raise ValueError("The LLM did not return league summary content.")
 
         report.content = report_text
-        report.status = "draft"
+        report.status = "complete"
         db.commit()
 
     except Exception as error:
@@ -599,6 +604,7 @@ def patch_report(
     if request.status is not None:
         allowed_statuses = {
             "processing",
+            "complete",
             "draft",
             "review",
             "approved",
@@ -687,12 +693,28 @@ def get_dashboard(
 ):
     # Get all saved reports from database
     reports = db.query(models.Report).all()
+    usable_statuses = {"complete", "draft", "review", "approved", "published"}
 
     # Count reports by status
     draft_count = len([r for r in reports if r.status == "draft"])
+    complete_count = len([r for r in reports if r.status == "complete"])
     review_count = len([r for r in reports if r.status == "review"])
     approved_count = len([r for r in reports if r.status == "approved"])
     published_count = len([r for r in reports if r.status == "published"])
+    usable_content_count = len(
+        [
+            r
+            for r in reports
+            if r.status in usable_statuses
+        ]
+    )
+    recent_reports = (
+        db.query(models.Report)
+        .filter(models.Report.status.in_(usable_statuses))
+        .order_by(models.Report.id.desc())
+        .limit(5)
+        .all()
+    )
 
     # Return simple dashboard data
     return {
@@ -700,13 +722,14 @@ def get_dashboard(
             "matches": 0,
             "jobs": len(reports),
             "leagues": 0,
-            "content": len(reports),
+            "content": usable_content_count,
+            "complete": complete_count,
             "draft": draft_count,
             "review": review_count,
             "approved": approved_count,
             "published": published_count,
         },
-        "recent_reports": [serialize_report(report) for report in reports[-5:]],
+        "recent_reports": [serialize_report(report) for report in recent_reports],
     }
 
 

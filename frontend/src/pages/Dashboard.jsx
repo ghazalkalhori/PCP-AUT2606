@@ -67,6 +67,80 @@ function DashboardStatusBadge({ status }) {
   );
 }
 
+function formatReportType(type) {
+  if (type?.includes("league")) return "League Summary";
+  if (type?.includes("pre")) return "Pre-Match";
+  return "Post-Match";
+}
+
+function displaySourceValue(value) {
+  if (value === null || value === undefined || value === "") return "";
+
+  if (typeof value === "string" || typeof value === "number") {
+    return String(value);
+  }
+
+  if (typeof value === "object") {
+    return (
+      value.name ||
+      value.title ||
+      value.club ||
+      value.team ||
+      Object.values(value).filter(Boolean).map(String).join(" - ")
+    );
+  }
+
+  return "";
+}
+
+function getReportTitle(report) {
+  const sourceData = report.source_data || {};
+
+  if (sourceData.kind === "league") {
+    const leagueTitle =
+      displaySourceValue(sourceData.leagueName) ||
+      displaySourceValue(sourceData.league) ||
+      displaySourceValue(sourceData.competition);
+
+    return leagueTitle ? `${leagueTitle} Summary` : `League Summary #${report.id}`;
+  }
+
+  const homeTeam =
+    displaySourceValue(sourceData.homeTeam) ||
+    displaySourceValue(sourceData.homeClub);
+  const awayTeam =
+    displaySourceValue(sourceData.awayTeam) ||
+    displaySourceValue(sourceData.awayClub);
+
+  if (homeTeam && awayTeam) {
+    return `${homeTeam} vs ${awayTeam}`;
+  }
+
+  return `Match Report #${report.id}`;
+}
+
+function getReportDetails(report) {
+  const sourceData = report.source_data || {};
+  const source =
+    displaySourceValue(sourceData.league) ||
+    displaySourceValue(sourceData.competition) ||
+    "Not provided";
+
+  if (sourceData.kind === "league") {
+    return [source, sourceData.roundLabel || sourceData.round, report.report_type]
+      .filter(Boolean)
+      .join(" • ");
+  }
+
+  const dateTime = [sourceData.matchDate, sourceData.matchTime]
+    .filter(Boolean)
+    .join(" at ");
+
+  return [source, dateTime, formatReportType(report.report_type)]
+    .filter(Boolean)
+    .join(" • ");
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -196,7 +270,7 @@ export default function Dashboard() {
       icon: "📅",
     },
     {
-      label: "Jobs",
+      label: "Jobs / Reports",
       value: dashboardData?.stats?.jobs ?? 0,
       icon: "💼",
     },
@@ -206,7 +280,7 @@ export default function Dashboard() {
       icon: "🏆",
     },
     {
-      label: "Content",
+      label: "Usable Reports",
       value: dashboardData?.stats?.content ?? 0,
       icon: "📄",
     },
@@ -214,6 +288,51 @@ export default function Dashboard() {
 
   // Recent reports from backend
   const recentReports = dashboardData?.recent_reports || [];
+
+  function handleOpenReport(report) {
+    const sourceData = report.source_data || {};
+    const title = getReportTitle(report);
+    const source =
+      displaySourceValue(sourceData.league) ||
+      displaySourceValue(sourceData.competition) ||
+      "Not provided";
+
+    navigate("/report/result", {
+      state: {
+        type: report.report_type?.includes("league") ? "league" : "match",
+        reportId: report.id,
+        reportStatus: report.status,
+        createdAt: report.created_at,
+        updatedAt: report.updated_at,
+        contentType: report.report_type,
+        writingStyle:
+          report.tone || sourceData.writingStyle || "Not provided",
+        generatedReport: report.content,
+        data: {
+          source_data: sourceData,
+          name: title,
+          league: sourceData.league || source,
+          competition: sourceData.competition || source,
+          date: sourceData.matchDate || "Not provided",
+          time: sourceData.matchTime || "Not provided",
+          homeTeam: {
+            name:
+              displaySourceValue(sourceData.homeTeam) ||
+              displaySourceValue(sourceData.homeClub) ||
+              title.split(" vs ")[0] ||
+              title,
+          },
+          awayTeam: {
+            name:
+              displaySourceValue(sourceData.awayTeam) ||
+              displaySourceValue(sourceData.awayClub) ||
+              title.split(" vs ")[1] ||
+              "Opponent",
+          },
+        },
+      },
+    });
+  }
 
   return (
     <div className="space-y-7">
@@ -289,7 +408,7 @@ export default function Dashboard() {
                 color: "#111827",
               }}
             >
-              Recent Jobs
+              Recent Content
             </p>
 
             <button
@@ -315,10 +434,13 @@ export default function Dashboard() {
               </p>
             ) : (
               recentReports.slice(0, 5).map((report) => (
-                <div
+                <button
                   key={report.id}
+                  type="button"
+                  onClick={() => handleOpenReport(report)}
                   style={{
                     display: "flex",
+                    width: "100%",
                     justifyContent: "space-between",
                     alignItems: "center",
                     gap: 16,
@@ -326,6 +448,8 @@ export default function Dashboard() {
                     borderRadius: 12,
                     background: "#F9FAFB",
                     border: "1px solid #F3F4F6",
+                    cursor: "pointer",
+                    textAlign: "left",
                   }}
                 >
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -340,7 +464,7 @@ export default function Dashboard() {
                         textOverflow: "ellipsis",
                       }}
                     >
-                      Fixture: {report.fixture_id}
+                      {getReportTitle(report)}
                     </p>
 
                     <p
@@ -350,7 +474,7 @@ export default function Dashboard() {
                         color: "#9CA3AF",
                       }}
                     >
-                      Job #{report.id} · {report.report_type}
+                      Job #{report.id} · {getReportDetails(report)}
                     </p>
                   </div>
 
@@ -359,7 +483,7 @@ export default function Dashboard() {
                       status={report.status || "complete"}
                     />
                   </div>
-                </div>
+                </button>
               ))
             )}
           </div>
