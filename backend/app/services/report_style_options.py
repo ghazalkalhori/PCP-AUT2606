@@ -1,5 +1,4 @@
-# Style instruction mappings for Reporta AI report generation.
-# Used by prompts.py to translate UI dropdown values into LLM guidance.
+
 
 _TONE_INSTRUCTIONS = {
     "professional": (

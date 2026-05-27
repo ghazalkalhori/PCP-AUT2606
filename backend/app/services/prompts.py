@@ -1,24 +1,4 @@
-# prompt.py
-# Option 2: Detailed production-style prompt builder for Reporta AI.
-#
-# Purpose:
-# - Generate story-style football reports from structured Dribl JSON data.
-# - Support post-match reports, pre-match reports, and round / league summaries.
-# - Apply tone, excitement, and comedic-effect settings selected from the UI.
-# - Strongly reduce hallucination by forcing the LLM to use only supplied JSON data.
-#
-# This file should work together with report_style_options.py.
-#
-# Example:
-# from prompt import build_match_report_prompt
-#
-# prompt = build_match_report_prompt(
-#     report_type="post_match",
-#     tone="fan_focused",
-#     excitement="balanced",
-#     comedic_effect="light",
-#     match_data=your_match_json,
-# )
+
 
 import json
 from typing import Any, Dict
