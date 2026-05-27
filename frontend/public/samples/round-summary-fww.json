@@ -1,0 +1,55 @@
+{
+  "source": "dribl",
+  "tenant": "FWW",
+  "reportType": "round_summary",
+  "competition": "Football Wagga Wagga",
+  "league": "Men's Division 1",
+  "season": "2026",
+  "round": 5,
+  "matches": [
+    {
+      "homeTeam": "Tolland United FC",
+      "awayTeam": "Lake Albert FC",
+      "homeScore": 3,
+      "awayScore": 1,
+      "goals": [
+        { "team": "Tolland United FC", "player": "Jack Morrison", "minute": 12 },
+        { "team": "Lake Albert FC", "player": "Samuel Price", "minute": 34 },
+        { "team": "Tolland United FC", "player": "Liam Carter", "minute": 58 },
+        { "team": "Tolland United FC", "player": "Jack Morrison", "minute": 81 }
+      ]
+    },
+    {
+      "homeTeam": "South Wagga FC",
+      "awayTeam": "Turvey Park FC",
+      "homeScore": 2,
+      "awayScore": 2,
+      "goals": [
+        { "team": "South Wagga FC", "player": "Ben Taylor", "minute": 23 },
+        { "team": "Turvey Park FC", "player": "Luke Nguyen", "minute": 41 },
+        { "team": "Turvey Park FC", "player": "Luke Nguyen", "minute": 55 },
+        { "team": "South Wagga FC", "player": "Oliver Reed", "minute": 88 }
+      ]
+    },
+    {
+      "homeTeam": "Henwood Park FC",
+      "awayTeam": "Gundagai FC",
+      "homeScore": 1,
+      "awayScore": 0,
+      "goals": [
+        { "team": "Henwood Park FC", "player": "Marcus Bell", "minute": 76 }
+      ]
+    }
+  ],
+  "ladder": [
+    { "position": 1, "team": "Tolland United FC", "played": 5, "points": 13 },
+    { "position": 2, "team": "South Wagga FC", "played": 5, "points": 11 },
+    { "position": 3, "team": "Turvey Park FC", "played": 5, "points": 9 },
+    { "position": 4, "team": "Henwood Park FC", "played": 5, "points": 8 },
+    { "position": 5, "team": "Lake Albert FC", "played": 5, "points": 6 }
+  ],
+  "notes": [
+    "Round 5 produced 7 goals across three completed matches.",
+    "Tolland United FC remain top of the ladder after a 3-1 win."
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "tenant": "FWW",
+  "leagues": [
+    {
+      "id": "LBdDVvVJNb",
+      "name": "Youth U18",
+      "competition": "Home and Away",
+      "season": "Winter 2026",
+      "tenant": "FWW",
+      "matchCount": 20
+    },
+    {
+      "id": "A4KLj9MGmq",
+      "name": "1st Grade Men (Pascoe Cup)",
+      "competition": "Home and Away",
+      "season": "Winter 2026",
+      "tenant": "FWW",
+      "matchCount": 15
+    },
+    {
+      "id": "1pN65y30m0",
+      "name": "2nd Grade Men (Gardiner Shield)",
+      "competition": "Home and Away",
+      "season": "Winter 2026",
+      "tenant": "FWW",
+      "matchCount": 15
+    }
+  ]
+}

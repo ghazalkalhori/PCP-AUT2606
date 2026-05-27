@@ -1,0 +1,106 @@
+{
+  "source": "dribl",
+  "fixtureId": "EXAMPLE_FIXTURE_ID",
+  "tenant": "FWW",
+  "reportType": "post_match",
+  "competition": "Football Wagga Wagga",
+  "league": "Men's Division 1",
+  "season": "2026",
+  "round": 5,
+  "date": "2026-05-18",
+  "time": "14:30",
+  "venue": "McDonald Park",
+  "field": "Field 1",
+  "eventStatus": "complete",
+  "homeTeam": {
+    "name": "Tolland United FC",
+    "code": "TOL001",
+    "score": 3
+  },
+  "awayTeam": {
+    "name": "Lake Albert FC",
+    "code": "LAK001",
+    "score": 1
+  },
+  "goals": [
+    {
+      "team": "Tolland United FC",
+      "player": "Jack Morrison",
+      "minute": 12
+    },
+    {
+      "team": "Lake Albert FC",
+      "player": "Samuel Price",
+      "minute": 34
+    },
+    {
+      "team": "Tolland United FC",
+      "player": "Liam Carter",
+      "minute": 58
+    },
+    {
+      "team": "Tolland United FC",
+      "player": "Jack Morrison",
+      "minute": 81
+    }
+  ],
+  "cards": [
+    {
+      "team": "Lake Albert FC",
+      "player": "Daniel Brooks",
+      "card": "yellow",
+      "minute": 44
+    },
+    {
+      "team": "Tolland United FC",
+      "player": "Ethan Walsh",
+      "card": "yellow",
+      "minute": 67
+    }
+  ],
+  "substitutions": [
+    {
+      "team": "Tolland United FC",
+      "playerOff": "Noah Patterson",
+      "playerOn": "Ryan Hooper",
+      "minute": 62
+    },
+    {
+      "team": "Lake Albert FC",
+      "playerOff": "Samuel Price",
+      "playerOn": "James Wilson",
+      "minute": 72
+    }
+  ],
+  "referees": [
+    {
+      "role": "Referee",
+      "name": "Chris Anderson"
+    },
+    {
+      "role": "Assistant Referee 1",
+      "name": "Mark Stevens"
+    }
+  ],
+  "notes": [
+    "Final score: Tolland United FC 3 - 1 Lake Albert FC.",
+    "Jack Morrison scored twice for the home side.",
+    "Match played at McDonald Park, Field 1."
+  ],
+  "driblAttributes": {
+    "competition_name": "Football Wagga Wagga",
+    "league_name": "Men's Division 1",
+    "season_name": "2026",
+    "round_number": 5,
+    "local_start_date": "2026-05-18",
+    "local_start_time": "14:30",
+    "ground_name": "McDonald Park",
+    "field_name": "Field 1",
+    "event_status": "complete",
+    "home_team": "Tolland United FC",
+    "away_team": "Lake Albert FC",
+    "home_team_code": "TOL001",
+    "away_team_code": "LAK001",
+    "tenant_name": "FWW"
+  }
+}

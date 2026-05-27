@@ -1,0 +1,46 @@
+{
+  "source": "dribl",
+  "fixtureId": "EXAMPLE_FIXTURE_ID",
+  "tenant": "FWW",
+  "reportType": "pre_match",
+  "competition": "Football Wagga Wagga",
+  "league": "Women's Division 1",
+  "season": "2026",
+  "round": 8,
+  "date": "2026-05-25",
+  "time": "10:00",
+  "venue": "Glenfield Park",
+  "field": "Field 2",
+  "eventStatus": "pending",
+  "homeTeam": {
+    "name": "Wagga United FC",
+    "code": "WAG001"
+  },
+  "awayTeam": {
+    "name": "Cootamundra FC",
+    "code": "COO001"
+  },
+  "homeForm": [
+    { "opponent": "Junee FC", "result": "W", "score": "2-0" },
+    { "opponent": "Griffith FC", "result": "D", "score": "1-1" },
+    { "opponent": "Leeton FC", "result": "W", "score": "3-2" }
+  ],
+  "awayForm": [
+    { "opponent": "Temora FC", "result": "L", "score": "0-1" },
+    { "opponent": "Young FC", "result": "W", "score": "2-1" },
+    { "opponent": "Narrandera FC", "result": "L", "score": "1-3" }
+  ],
+  "ladder": {
+    "homePosition": 2,
+    "awayPosition": 5,
+    "homePoints": 18,
+    "awayPoints": 12
+  },
+  "suspensions": [
+    { "team": "Cootamundra FC", "player": "Emma Clarke", "reason": "accumulated yellow cards" }
+  ],
+  "notes": [
+    "Round 8 fixture at Glenfield Park.",
+    "Wagga United FC sit second on the ladder; Cootamundra FC are fifth."
+  ]
+}

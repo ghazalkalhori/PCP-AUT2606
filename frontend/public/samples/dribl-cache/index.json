@@ -1,0 +1,194 @@
+{
+  "tenant": "FWW",
+  "legend": {
+    "matchStatus": {
+      "finished": "Match completed (event_status: complete) — use for post_match reports",
+      "not_finished": "Match not yet played (e.g. pending) — use for pre_match reports"
+    },
+    "reportUseCase": {
+      "post_match": "Single completed match + statistics",
+      "pre_match": "Upcoming fixture (no final score/statistics yet)",
+      "round_summary": "Many matches / leagues in one payload"
+    },
+    "fileKind": {
+      "fixtures_list": "Raw API: GET /api/fixtures (many matches)",
+      "leagues_summary": "Derived from fixtures — not a separate Dribl leagues API",
+      "fixture_raw": "Raw API: GET /api/fixtures/{id}",
+      "statistics_raw": "Raw API: GET /api/fixtures/{id}/statistics (finished matches only)",
+      "report_ready": "Normalised JSON for Generate Report UI"
+    }
+  },
+  "summary": {
+    "finishedMatchesInCache": 5,
+    "notFinishedMatchesInCache": 0,
+    "note": "Page 1 of fixtures (01-fixtures-list-raw.json) contains 50 matches, all complete. Re-run download_dribl_cache.py when API is available to add upcoming (pre_match) fixtures."
+  },
+  "files": [
+    {
+      "file": "01-fixtures-list-raw.json",
+      "description": "[ROUND SUMMARY] Full fixtures list — 50 matches (all finished on this page)",
+      "reportUseCase": "round_summary",
+      "matchStatus": "mixed",
+      "fileKind": "fixtures_list",
+      "driblApi": "GET /api/fixtures"
+    },
+    {
+      "file": "02-leagues-summary.json",
+      "description": "[ROUND SUMMARY] Leagues/competitions derived from fixtures",
+      "reportUseCase": "round_summary",
+      "matchStatus": "n/a",
+      "fileKind": "leagues_summary",
+      "driblApi": "Derived from GET /api/fixtures"
+    },
+    {
+      "file": "03-fixture-raw-lake-albert-soccer-club-youth-u18-01-mal.json",
+      "description": "[FINISHED] Raw fixture — Lake Albert vs Young Lions",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "fixture_raw",
+      "fixtureId": "EN2pgbwwEd",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/EN2pgbwwEd"
+    },
+    {
+      "file": "04-statistics-raw-lake-albert-soccer-club-youth-u18-01-mal.json",
+      "description": "[FINISHED] Statistics — Lake Albert vs Young Lions",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "statistics_raw",
+      "fixtureId": "EN2pgbwwEd",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/EN2pgbwwEd/statistics"
+    },
+    {
+      "file": "05-report-ready-lake-albert-soccer-club-youth-u18-01-mal.json",
+      "description": "[FINISHED · POST-MATCH] Report-ready — Lake Albert vs Young Lions",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "report_ready",
+      "fixtureId": "EN2pgbwwEd",
+      "eventStatus": "complete",
+      "reportType": "post_match"
+    },
+    {
+      "file": "06-fixture-raw-south-wagga-football-club-youth-u18-01-m.json",
+      "description": "[FINISHED] Raw fixture — South Wagga vs Hanwood",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "fixture_raw",
+      "fixtureId": "JmXWgl226d",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/JmXWgl226d"
+    },
+    {
+      "file": "07-statistics-raw-south-wagga-football-club-youth-u18-01-m.json",
+      "description": "[FINISHED] Statistics — South Wagga vs Hanwood",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "statistics_raw",
+      "fixtureId": "JmXWgl226d",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/JmXWgl226d/statistics"
+    },
+    {
+      "file": "08-report-ready-south-wagga-football-club-youth-u18-01-m.json",
+      "description": "[FINISHED · POST-MATCH] Report-ready — South Wagga vs Hanwood",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "report_ready",
+      "fixtureId": "JmXWgl226d",
+      "eventStatus": "complete",
+      "reportType": "post_match"
+    },
+    {
+      "file": "09-fixture-raw-henwood-park-youth-u18-01-male-vs-griffi.json",
+      "description": "[FINISHED] Raw fixture — Henwood Park vs Griffith City",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "fixture_raw",
+      "fixtureId": "1K3pbrwwLd",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/1K3pbrwwLd"
+    },
+    {
+      "file": "10-statistics-raw-henwood-park-youth-u18-01-male-vs-griffi.json",
+      "description": "[FINISHED] Statistics — Henwood Park vs Griffith City",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "statistics_raw",
+      "fixtureId": "1K3pbrwwLd",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/1K3pbrwwLd/statistics"
+    },
+    {
+      "file": "11-report-ready-henwood-park-youth-u18-01-male-vs-griffi.json",
+      "description": "[FINISHED · POST-MATCH] Report-ready — Henwood Park vs Griffith City",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "report_ready",
+      "fixtureId": "1K3pbrwwLd",
+      "eventStatus": "complete",
+      "reportType": "post_match"
+    },
+    {
+      "file": "12-fixture-raw-tolland-football-club-youth-u18-01-male-.json",
+      "description": "[FINISHED] Raw fixture — Tolland vs Leeton United",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "fixture_raw",
+      "fixtureId": "RNEgWZ2EZd",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/RNEgWZ2EZd"
+    },
+    {
+      "file": "13-statistics-raw-tolland-football-club-youth-u18-01-male-.json",
+      "description": "[FINISHED] Statistics — Tolland vs Leeton United",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "statistics_raw",
+      "fixtureId": "RNEgWZ2EZd",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/RNEgWZ2EZd/statistics"
+    },
+    {
+      "file": "14-report-ready-tolland-football-club-youth-u18-01-male-.json",
+      "description": "[FINISHED · POST-MATCH] Report-ready — Tolland vs Leeton United",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "report_ready",
+      "fixtureId": "RNEgWZ2EZd",
+      "eventStatus": "complete",
+      "reportType": "post_match"
+    },
+    {
+      "file": "15-fixture-raw-wagga-united-football-club-youth-u18-01-.json",
+      "description": "[FINISHED] Raw fixture — Wagga United vs Yoogali",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "fixture_raw",
+      "fixtureId": "Vdz1PDW3pK",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/Vdz1PDW3pK"
+    },
+    {
+      "file": "16-statistics-raw-wagga-united-football-club-youth-u18-01-.json",
+      "description": "[FINISHED] Statistics — Wagga United vs Yoogali",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "statistics_raw",
+      "fixtureId": "Vdz1PDW3pK",
+      "eventStatus": "complete",
+      "driblApi": "GET /api/fixtures/Vdz1PDW3pK/statistics"
+    },
+    {
+      "file": "17-report-ready-wagga-united-football-club-youth-u18-01-.json",
+      "description": "[FINISHED · POST-MATCH] Report-ready — Wagga United vs Yoogali",
+      "reportUseCase": "post_match",
+      "matchStatus": "finished",
+      "fileKind": "report_ready",
+      "fixtureId": "Vdz1PDW3pK",
+      "eventStatus": "complete",
+      "reportType": "post_match"
+    }
+  ]
+}
