@@ -47,11 +47,16 @@ def _load_fixture_dict(match: models.Match) -> dict:
 def _summarise_match_entry(
     match: models.Match,
     include_statistics: bool = True,
+    preview_mode: bool = False,
 ) -> dict[str, Any]:
     fixture = _load_fixture_dict(match)
     statistics = None
 
-    if include_statistics and str(match.event_status or "").lower() == "complete":
+    if (
+        include_statistics
+        and not preview_mode
+        and str(match.event_status or "").lower() == "complete"
+    ):
         try:
             statistics = get_fixture_statistics(match.fixture_id)
         except Exception:
@@ -62,21 +67,25 @@ def _summarise_match_entry(
     else:
         normalized = normalize_fixture_for_report(fixture, None)
 
-    return {
+    entry = {
         "fixtureId": match.fixture_id,
         "homeTeam": (normalized.get("homeTeam") or {}).get("name") or match.home_team,
         "awayTeam": (normalized.get("awayTeam") or {}).get("name") or match.away_team,
-        "homeScore": (normalized.get("homeTeam") or {}).get("score"),
-        "awayScore": (normalized.get("awayTeam") or {}).get("score"),
         "date": normalized.get("date") or match.local_start_date,
         "time": normalized.get("time") or match.local_start_time,
         "venue": normalized.get("venue") or match.ground_name,
         "field": normalized.get("field") or match.field_name,
         "status": normalized.get("eventStatus") or match.event_status,
-        "goals": normalized.get("goals") or [],
-        "cards": normalized.get("cards") or [],
-        "referees": normalized.get("referees") or [],
     }
+
+    if not preview_mode:
+        entry["homeScore"] = (normalized.get("homeTeam") or {}).get("score")
+        entry["awayScore"] = (normalized.get("awayTeam") or {}).get("score")
+        entry["goals"] = normalized.get("goals") or []
+        entry["cards"] = normalized.get("cards") or []
+        entry["referees"] = normalized.get("referees") or []
+
+    return entry
 
 
 def build_round_summary_payload(
@@ -88,10 +97,16 @@ def build_round_summary_payload(
     season: Optional[str] = None,
     tenant: Optional[str] = None,
     include_statistics: bool = True,
+    article_mode: str = "recap",
 ) -> dict[str, Any]:
     """
     Aggregate matches for a league (and optional round) into report-ready JSON.
+
+    article_mode:
+        "preview" — upcoming fixtures only, for round preview articles
+        "recap" — all statuses, with statistics for completed matches
     """
+    preview_mode = str(article_mode or "recap").lower() == "preview"
     query = db.query(models.Match).filter(models.Match.league_id == str(league_id))
 
     if round_value not in (None, "", "all"):
@@ -103,20 +118,45 @@ def build_round_summary_payload(
     total_in_query = query.count()
     truncated = total_in_query > MAX_MATCHES_IN_ROUND_SUMMARY
 
-    matches = (
+    all_matches = (
         query.order_by(
             models.Match.local_start_date.asc(),
             models.Match.local_start_time.asc(),
             models.Match.id.asc(),
         )
-        .limit(MAX_MATCHES_IN_ROUND_SUMMARY)
+        .limit(MAX_MATCHES_IN_ROUND_SUMMARY * 2 if preview_mode else MAX_MATCHES_IN_ROUND_SUMMARY)
         .all()
     )
 
-    summarised_matches = [
-        _summarise_match_entry(match, include_statistics=include_statistics)
-        for match in matches
-    ]
+    completed_in_round = []
+    preview_matches = []
+
+    for match in all_matches:
+        status = str(match.event_status or "").lower()
+        entry = _summarise_match_entry(
+            match,
+            include_statistics=include_statistics,
+            preview_mode=preview_mode,
+        )
+        if status == "complete":
+            if preview_mode and len(completed_in_round) < 10:
+                completed_in_round.append(
+                    _summarise_match_entry(match, include_statistics=True, preview_mode=False)
+                )
+            if not preview_mode:
+                preview_matches.append(entry)
+        else:
+            preview_matches.append(entry)
+
+    if preview_mode:
+        matches = preview_matches[:MAX_MATCHES_IN_ROUND_SUMMARY]
+        summarised_matches = matches
+    else:
+        matches = all_matches[:MAX_MATCHES_IN_ROUND_SUMMARY]
+        summarised_matches = [
+            _summarise_match_entry(match, include_statistics=include_statistics)
+            for match in matches
+        ]
 
     completed = sum(
         1 for item in summarised_matches if str(item.get("status", "")).lower() == "complete"
@@ -143,14 +183,19 @@ def build_round_summary_payload(
     resolved_tenant = tenant or (first_match.tenant_name if first_match else "FWW")
 
     notes = []
+    if preview_mode and not summarised_matches:
+        notes.append("No pending fixtures were found for this round selection.")
     if truncated:
         notes.append(
             f"Only the first {MAX_MATCHES_IN_ROUND_SUMMARY} of {total_in_query} "
             f"matches in this selection were included."
         )
 
+    payload_kind = "round_preview" if preview_mode else "round_summary"
+
     return {
-        "kind": "round_summary",
+        "kind": payload_kind,
+        "articleType": "preview" if preview_mode else "recap",
         "leagueId": league_id,
         "leagueName": resolved_league_name,
         "league": resolved_league_name,
@@ -164,6 +209,8 @@ def build_round_summary_payload(
         "completedCount": completed,
         "pendingCount": pending,
         "matchesWithScores": with_scores,
+        "previewMatchCount": len(summarised_matches) if preview_mode else pending,
         "matches": summarised_matches,
+        "completedMatchesInRound": completed_in_round if preview_mode else [],
         "notes": notes,
     }
