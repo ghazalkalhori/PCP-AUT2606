@@ -24,11 +24,7 @@ from app.services.dribl_normalize import (
 )
 
 from app.schemas import GenerateReportRequest, GenerateReportResponse
-from app.services.prompts import (
-    build_league_round_prompt,
-    build_league_summary_prompt,
-    build_match_report_prompt,
-)
+from app.services.prompts import build_league_summary_prompt, build_match_report_prompt
 from app.services.ollama import generate_report
 from app.services.report_style_options import get_style_options, resolve_report_style
 from app.services.round_summary_builder import build_round_summary_payload
@@ -88,7 +84,6 @@ class LeagueSummaryJobRequest(BaseModel):
     tone: str = "professional"
     excitement: str = "balanced"
     comedic_effect: str = "none"
-    article_type: str = "preview"
 
 
 class ReportUpdate(BaseModel):
@@ -521,7 +516,7 @@ def run_league_summary_generation_background(report_id: int):
             source_data.get("excitement"),
             source_data.get("comedic_effect"),
         )
-        prompt = build_league_round_prompt(
+        prompt = build_league_summary_prompt(
             tone=style["tone"],
             league_data=source_data,
             excitement=style["excitement"],
@@ -671,15 +666,13 @@ def create_job(
 def league_round_summary_data(
     league_id: str,
     round: str = "all",
-    article_type: str = "preview",
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
-    """Return structured round JSON for preview or recap articles."""
+    """Return structured round JSON (matches with scores when available) for the UI."""
     league = (
         db.query(models.League).filter(models.League.league_id == str(league_id)).first()
     )
-    mode = "preview" if str(article_type).lower() in {"preview", "round_preview", "pre_match"} else "recap"
 
     return build_round_summary_payload(
         db=db,
@@ -689,8 +682,6 @@ def league_round_summary_data(
         competition=league.competition if league else None,
         season=league.season if league else None,
         tenant=league.tenant if league else None,
-        include_statistics=mode != "preview",
-        article_mode=mode,
     )
 
 
@@ -708,12 +699,6 @@ def create_league_summary_job(
         request.tone, request.excitement, request.comedic_effect
     )
 
-    mode = (
-        "preview"
-        if str(request.article_type).lower() in {"preview", "round_preview", "pre_match"}
-        else "recap"
-    )
-
     source_data = build_round_summary_payload(
         db=db,
         league_id=str(request.league_id),
@@ -721,13 +706,9 @@ def create_league_summary_job(
         league_name=request.league_name,
         competition=request.competition,
         season=request.season,
-        article_mode=mode,
-        include_statistics=mode != "preview",
     )
     source_data["roundLabel"] = request.round_label or source_data.get("roundLabel")
-    source_data["contentType"] = (
-        "Round Preview" if mode == "preview" else "Round Recap"
-    )
+    source_data["contentType"] = "League Summary"
     source_data["tone"] = style["tone"]
     source_data["excitement"] = style["excitement"]
     source_data["comedic_effect"] = style["comedic_effect"]
@@ -735,7 +716,7 @@ def create_league_summary_job(
 
     new_report = models.Report(
         fixture_id=None,
-        report_type="round_preview" if mode == "preview" else "league_summary",
+        report_type="league_summary",
         tone=style["tone"],
         source_data=json.dumps(source_data),
         content=None,

@@ -86,7 +86,7 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
       setIsLoadingRoundData(true);
       try {
         const response = await fetch(
-          `${API_BASE_URL}/leagues/${leagueId}/round-summary-data?round=${selectedRound}&article_type=preview`,
+          `${API_BASE_URL}/leagues/${leagueId}/round-summary-data?round=${selectedRound}`,
           { headers: getAuthHeaders() },
         );
         const payload = await response.json().catch(() => ({}));
@@ -171,7 +171,6 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
           tone: writingStyle.toLowerCase(),
           excitement: "balanced",
           comedic_effect: "none",
-          article_type: "preview",
         }),
       });
 

@@ -9,15 +9,13 @@ SUPPORTED_REPORT_TYPES = {
     "post_match",
     "pre_match",
     "round_summary",
-    "round_preview",
 }
 
 
 REPORT_TYPE_LABELS = {
     "post_match": "Post-Match Report",
     "pre_match": "Pre-Match Preview",
-    "round_summary": "Round / League Recap",
-    "round_preview": "Round Preview Article",
+    "round_summary": "Round / League Summary",
 }
 
 
@@ -66,22 +64,11 @@ stake — only from supplied fixture, form, ladder, squad, and availability data
 write as if the match has finished. Do not predict a final score or invent rivalry.
 """,
     "round_summary": """
-The report is about a football round, league, or group of matches that have already been played.
+The report is about a football round, league, or group of matches.
 
 Write a round wrap as a connected story: opening theme for the round, then the most
 important results and moments across matches — grouped naturally, not a bare
 scoreboard. Mention ladder or table movement only if supplied.
-""",
-    "round_preview": """
-The report is a full-round preview article for upcoming fixtures.
-
-Write in the style of a professional match preview: clear, polished, narrative-driven,
-and engaging. Preview each upcoming fixture with context around ladder positions,
-recent form, key players, motivation, revenge storylines, promotion/relegation
-implications, and relevant history — only when that information exists in the JSON.
-
-Do not write as if any previewed match has been played. Do not report scores or goals
-for upcoming fixtures.
 """,
 }
 
@@ -134,46 +121,6 @@ Structure (no # headline — start with the lead paragraph):
 [Only if ladder, table, or next-round data exists in the JSON. Otherwise omit.]
 
 Do not use ## Match Wrap as a separate thin header if merged into Around the Grounds.
-""",
-    "round_preview": """
-Output format (plain text only — no markdown):
-
-Optional short opening paragraph for the whole round (1–2 sentences) when the JSON
-supports league, competition, season, and round context.
-
-Then, for EACH upcoming fixture in matches[] (status pending or not complete), use
-exactly this plain-text layout with a blank line between fixtures:
-
-Team A vs Team B
-
-Day, Date Month Year – Time, Venue
-
-[2–4 short paragraphs previewing the match in flowing prose.]
-
-Formatting rules:
-- Do NOT use markdown headings, hashtags (#), bullet points, numbered lists, tables,
-  horizontal rules, or section labels such as "Preview", "Match", "Analysis", "Completed
-  Matches", or "Matches Yet to be Played".
-- Do NOT group fixtures under category headers.
-- Use the team names exactly as supplied in the JSON.
-- Format the date line from date, time, venue, and field when available.
-- Separate each fixture block with one blank line.
-
-Content to include in each fixture preview when the JSON supports it:
-- ladder position for each team
-- recent results or form trends
-- key players or top scorers
-- what is at stake for both clubs
-- revenge angles from previous meetings (only if prior results are in the JSON)
-- promotion, finals, or relegation implications
-- a closing sentence that adds anticipation or tension
-
-Tone example (style only — do not copy facts):
-"An intriguing battle awaits as Central Coast United FC look to continue their strongest
-winning run of the season against the league's most in-form team, Bonnyrigg White Eagles FC."
-
-If data is limited, write generally from what is supplied. Do not invent exact ladder
-positions, player names, scores, or historical results.
 """,
 }
 
@@ -287,32 +234,6 @@ Output only the finished article. No checklist, no preamble, no # headline.
 """
 
 
-ROUND_PREVIEW_JSON_GUIDE = """
-How to read the round-preview JSON:
-- kind should be "round_preview".
-- Top level: leagueName, competition, season, round, roundLabel, matches[].
-- Only preview fixtures listed in matches[] with status "pending" (or not "complete").
-- Each match item includes: homeTeam, awayTeam, date, time, venue, field, status.
-- completedMatchesInRound[] (if present): earlier results in this round for context only —
-  use for revenge or form angles, not as fixtures to preview again.
-- ladder[] or table[] (if present): team positions — use only as supplied.
-- Do not treat homeScore, awayScore, goals, or cards on pending fixtures as real outcomes.
-- If notes[] mentions truncation, do not claim every fixture in the competition is covered.
-"""
-
-
-ROUND_PREVIEW_QUALITY_CHECK = """
-Before writing, silently check:
-1. List only pending/upcoming fixtures — never preview a match as if it finished.
-2. For each fixture, can you write Team A vs Team B and a proper date/venue line from JSON?
-3. Which context fields exist (ladder, form, key players)? Use only those; generalise if sparse.
-4. Are you avoiding bullets, ## headers, and "Completed Matches" style sections?
-5. Does each fixture end with anticipation, without inventing a final score?
-
-Output only the finished round preview article. No checklist, no preamble, no markdown.
-"""
-
-
 def _normalise_report_type(report_type: str) -> str:
     """
     Convert the report type from the frontend/API into a safe internal value.
@@ -338,11 +259,6 @@ def _normalise_report_type(report_type: str) -> str:
         "league_summary": "round_summary",
         "league summary": "round_summary",
         "summary": "round_summary",
-        "round-preview": "round_preview",
-        "round preview": "round_preview",
-        "round_preview": "round_preview",
-        "league_preview": "round_preview",
-        "league preview": "round_preview",
     }
 
     normalised = aliases.get(normalised, normalised)
@@ -403,7 +319,7 @@ def build_match_report_prompt(
 
         tone:
             Selected by the admin user in the UI.
-            Example: "professional", "formal", "neutral", "fan_based", "casual"
+            Example: "professional", "formal", "neutral", "casual"
 
         excitement:
             Selected by the admin user in the UI.
@@ -580,110 +496,3 @@ Output requirements:
 Structured round JSON data:
 {league_json}
 """.strip()
-
-
-def build_round_preview_prompt(
-    tone: str,
-    league_data: dict,
-    excitement: str = "balanced",
-    comedic_effect: str = "none",
-) -> str:
-    """Build a full-round pre-match preview article prompt."""
-    style_instructions = get_style_instructions(
-        tone=tone,
-        excitement=excitement,
-        comedic_effect=comedic_effect,
-    )
-
-    league_name = (
-        league_data.get("leagueName")
-        or league_data.get("league")
-        or "Selected League"
-    )
-    competition = league_data.get("competition") or league_name
-    season = league_data.get("season") or "Current season"
-    round_label = (
-        league_data.get("roundLabel")
-        or league_data.get("round")
-        or "All available rounds"
-    )
-    preview_count = league_data.get("previewMatchCount") or league_data.get(
-        "pendingCount"
-    )
-
-    league_json = _safe_json_dumps(league_data if isinstance(league_data, dict) else {})
-    data_availability_hint = _build_data_availability_hint(
-        league_data if isinstance(league_data, dict) else {}
-    )
-
-    return f"""
-You are Reporta AI, a professional Australian football journalist writing for a
-competition management platform (Dribl). Turn the structured round JSON below into a
-full-round preview article for upcoming fixtures — not a results roundup.
-
-Report type:
-{REPORT_TYPE_LABELS["round_preview"]}
-
-Report purpose:
-{REPORT_TYPE_PURPOSE["round_preview"]}
-
-Selected writing style:
-Tone:
-{style_instructions["tone"]}
-
-Excitement:
-{style_instructions["excitement"]}
-
-Comedic effect:
-{style_instructions["comedic_effect"]}
-
-Round overview (planning only — do not quote these labels verbatim):
-- League: {league_name}
-- Competition: {competition}
-- Season: {season}
-- Round: {round_label}
-- Upcoming fixtures to preview: {preview_count if preview_count is not None else "unknown"}
-
-{ROUND_PREVIEW_JSON_GUIDE}
-
-Data availability hint (for your planning only — do not quote this in the article):
-{data_availability_hint}
-
-{GLOBAL_ANTI_HALLUCINATION_RULES}
-
-{MISSING_DATA_RULES}
-
-Article structure:
-{REPORT_STRUCTURE["round_preview"]}
-
-Output requirements:
-- Return only the finished round preview article as plain text.
-- No markdown: no #, ##, **, bullet points, tables, or horizontal rules.
-- No section titles such as "Preview", "Match", "Analysis", "Completed Matches",
-  or "Matches Yet to be Played".
-- Preview every fixture in matches[] using the Team A vs Team B / date line / paragraphs format.
-- Keep the tone confident, concise, and football-focused. Read like a published round
-  preview, not a data report or robotic summary.
-- Do not invent exact ladder positions, player names, scores, or historical results.
-
-{ROUND_PREVIEW_QUALITY_CHECK}
-
-Structured round JSON data:
-{league_json}
-""".strip()
-
-
-def build_league_round_prompt(
-    tone: str,
-    league_data: dict,
-    excitement: str = "balanced",
-    comedic_effect: str = "none",
-) -> str:
-    """Route to round preview or post-round recap prompt based on payload kind."""
-    kind = str(league_data.get("kind") or "round_summary").lower()
-    article_type = str(league_data.get("articleType") or "").lower()
-
-    if kind == "round_preview" or article_type in {"preview", "round_preview", "pre_match"}:
-        return build_round_preview_prompt(tone, league_data, excitement, comedic_effect)
-
-    return build_league_summary_prompt(tone, league_data, excitement, comedic_effect)

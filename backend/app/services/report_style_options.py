@@ -14,10 +14,6 @@ _TONE_INSTRUCTIONS = {
         "Write in a neutral, objective tone. "
         "Report facts without strong editorial bias or emotional language."
     ),
-    "fan_based": (
-        "Write as if you are a passionate supporter who watched the match. "
-        "Energetic, invested, and warmer in voice, but still grounded in the supplied data."
-    ),
     "casual": (
         "Write in a relaxed, approachable tone. "
         "Conversational but still accurate and publication-ready."
@@ -81,7 +77,6 @@ TONE_OPTIONS = [
     "professional",
     "formal",
     "neutral",
-    "fan_based",
     "casual",
 ]
 
@@ -141,12 +136,12 @@ def resolve_report_style(
 
     # Removed tones fall back to the closest remaining option.
     _REMOVED_TONE_ALIASES = {
+        "fan_focused": "professional",
+        "fan_based": "professional",
         "community_club": "casual",
         "analytical": "neutral",
         "dramatic": "professional",
     }
-    if tone_key == "fan_focused":
-        tone_key = "fan_based"
     tone_key = _REMOVED_TONE_ALIASES.get(tone_key, tone_key)
 
     if tone_key not in TONE_OPTIONS:

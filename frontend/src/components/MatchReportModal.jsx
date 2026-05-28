@@ -7,7 +7,7 @@ const labelClassName = "text-xs text-gray-400 uppercase tracking-wide mb-1";
 const contentTypes = ["Pre-Match", "Post-Match"];
 
 const DEFAULT_STYLE_OPTIONS = {
-  tones: ["professional", "formal", "neutral", "fan_based", "casual"],
+  tones: ["professional", "formal", "neutral", "casual"],
   excitement_levels: ["low", "balanced", "high"],
   comedic_effects: ["none", "light", "moderate"],
 };
