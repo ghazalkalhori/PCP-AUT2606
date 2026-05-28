@@ -15,12 +15,19 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.db import Base, engine, SessionLocal
-from app.services.dribl import get_fixture
+from app.services.dribl import get_fixture, get_fixture_statistics
 from app.services.dribl_sync import sync_dribl_data
+from app.services.dribl_normalize import (
+    normalize_fixture_for_report,
+    normalize_fixture_record,
+    score_label_from_match_data,
+)
 
 from app.schemas import GenerateReportRequest, GenerateReportResponse
 from app.services.prompts import build_league_summary_prompt, build_match_report_prompt
 from app.services.ollama import generate_report
+from app.services.report_style_options import get_style_options, resolve_report_style
+from app.services.round_summary_builder import build_round_summary_payload
 
 Base.metadata.create_all(bind=engine)
 
@@ -57,6 +64,11 @@ class JobRequest(BaseModel):
     fixture_id: str
     report_type: str
     tone: str = "professional"
+    excitement: str = "balanced"
+    comedic_effect: str = "none"
+    fixture: Optional[dict[str, Any]] = None
+    statistics: Optional[dict[str, Any]] = None
+    match_data: Optional[dict[str, Any]] = None
 
 
 class LeagueSummaryJobRequest(BaseModel):
@@ -70,6 +82,8 @@ class LeagueSummaryJobRequest(BaseModel):
     match_count: Optional[int] = None
     status: Optional[str] = None
     tone: str = "professional"
+    excitement: str = "balanced"
+    comedic_effect: str = "none"
 
 
 class ReportUpdate(BaseModel):
@@ -192,6 +206,62 @@ def get_fixture_attributes(
     return attributes
 
 
+def load_fixture_payload(fixture_id: str, db: Optional[Session] = None) -> dict[str, Any]:
+    fixture = get_fixture_from_database(fixture_id, db) if db is not None else None
+
+    if fixture is None:
+        live_fixture = get_fixture(fixture_id)
+        fixture = live_fixture.get("data", live_fixture)
+
+    return fixture if isinstance(fixture, dict) else {}
+
+
+def load_statistics_payload(
+    fixture_id: str, event_status: Optional[str] = None
+) -> Optional[dict[str, Any]]:
+    if str(event_status or "").lower() != "complete":
+        return None
+
+    try:
+        response = get_fixture_statistics(fixture_id)
+    except HTTPException:
+        return None
+
+    if isinstance(response, dict):
+        return response
+
+    return None
+
+
+def build_match_bundle(
+    fixture_id: str,
+    db: Optional[Session] = None,
+    fixture: Optional[dict[str, Any]] = None,
+    statistics: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    fixture_payload = fixture or load_fixture_payload(fixture_id, db)
+    fixture_record = normalize_fixture_record(fixture_payload)
+    attributes = fixture_record.get("attributes", {})
+
+    if not isinstance(attributes, dict):
+        attributes = {}
+
+    statistics_payload = statistics
+    if statistics_payload is None:
+        statistics_payload = load_statistics_payload(
+            fixture_id, attributes.get("event_status")
+        )
+
+    match_data = normalize_fixture_for_report(fixture_payload, statistics_payload)
+
+    return {
+        "fixture_id": fixture_id,
+        "fixture": fixture_payload,
+        "statistics": statistics_payload,
+        "match_data": match_data,
+    }
+
+
 def serialize_match(match: models.Match) -> dict[str, Any]:
     raw_fixture: dict[str, Any] = {}
 
@@ -279,55 +349,53 @@ def build_score(data: dict[str, Any]) -> str:
 
 
 def build_match_source_data(
-    data: dict[str, Any],
+    match_bundle: dict[str, Any],
     report_type: str,
     tone: str,
-    score: str,
+    excitement: str = "balanced",
+    comedic_effect: str = "none",
 ) -> dict[str, Any]:
-    home_team = data.get("home_club") or data.get("home_team")
-    away_team = data.get("away_club") or data.get("away_team")
+    match_data = match_bundle.get("match_data") or {}
+    score = score_label_from_match_data(match_data)
+    style = resolve_report_style(tone, excitement, comedic_effect)
 
     return {
         "kind": "match",
-        "homeTeam": home_team,
-        "awayTeam": away_team,
-        "homeClub": data.get("home_club"),
-        "awayClub": data.get("away_club"),
-        "league": data.get("league_name"),
-        "competition": data.get("competition_name"),
-        "venue": data.get("ground_name"),
-        "matchDate": data.get("local_start_date"),
-        "matchTime": data.get("local_start_time"),
-        "status": data.get("event_status"),
+        "fixtureId": match_bundle.get("fixture_id"),
+        "homeTeam": (match_data.get("homeTeam") or {}).get("name"),
+        "awayTeam": (match_data.get("awayTeam") or {}).get("name"),
+        "league": match_data.get("league"),
+        "competition": match_data.get("competition"),
+        "venue": match_data.get("venue"),
+        "matchDate": match_data.get("date"),
+        "matchTime": match_data.get("time"),
+        "status": match_data.get("eventStatus"),
         "score": score,
         "contentType": report_type,
-        "writingStyle": tone,
+        "tone": style["tone"],
+        "excitement": style["excitement"],
+        "comedic_effect": style["comedic_effect"],
+        "writingStyle": style["tone"],
+        "fixture": match_bundle.get("fixture"),
+        "statistics": match_bundle.get("statistics"),
+        "match_data": match_data,
     }
 
 
 def build_report_prompt(
-    data: dict[str, Any],
+    match_data: dict[str, Any],
     report_type: str,
     tone: str,
-    score: str,
+    excitement: str = "balanced",
+    comedic_effect: str = "none",
 ) -> str:
+    style = resolve_report_style(tone, excitement, comedic_effect)
     return build_match_report_prompt(
         report_type=report_type,
-        tone=tone,
-        excitement="Medium",
-        comedic_effect="None",
-        match_data={
-            "home_team": data.get("home_team"),
-            "away_team": data.get("away_team"),
-            "competition": data.get("competition_name"),
-            "league": data.get("league_name"),
-            "date": data.get("local_start_date"),
-            "time": data.get("local_start_time"),
-            "venue": data.get("ground_name"),
-            "field": data.get("field_name"),
-            "status": data.get("event_status"),
-            "score": score,
-        },
+        tone=style["tone"],
+        excitement=style["excitement"],
+        comedic_effect=style["comedic_effect"],
+        match_data=match_data,
     )
 
 
@@ -379,9 +447,11 @@ def mark_report_generation_failed(
 
 def run_report_generation_background(
     report_id: int,
-    fixture_id: str,
+    match_bundle: dict[str, Any],
     report_type: str,
     tone: str,
+    excitement: str = "balanced",
+    comedic_effect: str = "none",
 ):
     db = SessionLocal()
 
@@ -391,9 +461,15 @@ def run_report_generation_background(
         if report is None:
             return
 
-        data = get_fixture_attributes(fixture_id, db)
-        score = build_score(data)
-        prompt = build_report_prompt(data, report_type, tone, score)
+        style = resolve_report_style(tone, excitement, comedic_effect)
+        match_data = match_bundle.get("match_data") or {}
+        prompt = build_report_prompt(
+            match_data,
+            report_type,
+            style["tone"],
+            style["excitement"],
+            style["comedic_effect"],
+        )
         result = generate_report(prompt)
         report_text = result.get("report", "").strip()
 
@@ -402,8 +478,15 @@ def run_report_generation_background(
 
         report.content = report_text
         report.status = "complete"
+        report.tone = style["tone"]
 
-        source_data = build_match_source_data(data, report_type, tone, score)
+        source_data = build_match_source_data(
+            match_bundle,
+            report_type,
+            style["tone"],
+            style["excitement"],
+            style["comedic_effect"],
+        )
         report.source_data = json.dumps(source_data)
 
         db.commit()
@@ -428,9 +511,16 @@ def run_league_summary_generation_background(report_id: int):
             return
 
         source_data = json.loads(report.source_data or "{}")
+        style = resolve_report_style(
+            report.tone or source_data.get("tone") or source_data.get("writingStyle") or "professional",
+            source_data.get("excitement"),
+            source_data.get("comedic_effect"),
+        )
         prompt = build_league_summary_prompt(
-            tone=report.tone or source_data.get("writingStyle") or "professional",
+            tone=style["tone"],
             league_data=source_data,
+            excitement=style["excitement"],
+            comedic_effect=style["comedic_effect"],
         )
         result = generate_report(prompt)
         report_text = result.get("report", "").strip()
@@ -455,6 +545,11 @@ def run_league_summary_generation_background(report_id: int):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/report-style-options")
+def report_style_options(user: str = Depends(get_current_user)):
+    return get_style_options()
 
 
 @app.post("/auth/login")
@@ -485,15 +580,7 @@ def match_detail(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
-    fixture = get_fixture_from_database(fixture_id, db)
-
-    if fixture is not None:
-        if "data" not in fixture and isinstance(fixture.get("attributes"), dict):
-            return {"data": fixture}
-
-        return fixture
-
-    return get_fixture(fixture_id)
+    return build_match_bundle(fixture_id, db)
 
 
 @app.post("/jobs")
@@ -503,9 +590,27 @@ def create_job(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
-    data = get_fixture_attributes(request.fixture_id, db)
+    if request.match_data:
+        match_bundle = {
+            "fixture_id": request.fixture_id,
+            "fixture": request.fixture,
+            "statistics": request.statistics,
+            "match_data": request.match_data,
+        }
+        if request.fixture and request.statistics:
+            match_bundle["match_data"] = normalize_fixture_for_report(
+                request.fixture, request.statistics
+            )
+    else:
+        match_bundle = build_match_bundle(
+            request.fixture_id,
+            db,
+            fixture=request.fixture,
+            statistics=request.statistics,
+        )
 
-    match_status = str(data.get("event_status", "")).lower()
+    match_data = match_bundle.get("match_data") or {}
+    match_status = str(match_data.get("eventStatus", "")).lower()
     report_type = request.report_type.lower().replace("_", "-")
 
     if match_status == "pending" and report_type == "post-match":
@@ -514,18 +619,22 @@ def create_job(
             detail="Post-match reports are only available for complete matches.",
         )
 
-    score = build_score(data)
+    style = resolve_report_style(
+        request.tone, request.excitement, request.comedic_effect
+    )
+
     source_data = build_match_source_data(
-        data=data,
+        match_bundle=match_bundle,
         report_type=request.report_type,
-        tone=request.tone,
-        score=score,
+        tone=style["tone"],
+        excitement=style["excitement"],
+        comedic_effect=style["comedic_effect"],
     )
 
     new_report = models.Report(
         fixture_id=request.fixture_id,
         report_type=request.report_type,
-        tone=request.tone,
+        tone=style["tone"],
         source_data=json.dumps(source_data),
         content=None,
         status="processing",
@@ -538,9 +647,11 @@ def create_job(
     background_tasks.add_task(
         run_report_generation_background,
         new_report.id,
-        request.fixture_id,
+        match_bundle,
         request.report_type,
-        request.tone,
+        style["tone"],
+        style["excitement"],
+        style["comedic_effect"],
     )
 
     return {
@@ -551,6 +662,29 @@ def create_job(
     }
 
 
+@app.get("/leagues/{league_id}/round-summary-data")
+def league_round_summary_data(
+    league_id: str,
+    round: str = "all",
+    db: Session = Depends(get_db),
+    user: str = Depends(get_current_user),
+):
+    """Return structured round JSON (matches with scores when available) for the UI."""
+    league = (
+        db.query(models.League).filter(models.League.league_id == str(league_id)).first()
+    )
+
+    return build_round_summary_payload(
+        db=db,
+        league_id=league_id,
+        round_value=round,
+        league_name=league.name if league else None,
+        competition=league.competition if league else None,
+        season=league.season if league else None,
+        tenant=league.tenant if league else None,
+    )
+
+
 @app.post("/league-summary/jobs")
 def create_league_summary_job(
     request: LeagueSummaryJobRequest,
@@ -558,12 +692,32 @@ def create_league_summary_job(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
-    source_data = build_league_source_data(request)
+    if not request.league_id:
+        raise HTTPException(status_code=400, detail="league_id is required.")
+
+    style = resolve_report_style(
+        request.tone, request.excitement, request.comedic_effect
+    )
+
+    source_data = build_round_summary_payload(
+        db=db,
+        league_id=str(request.league_id),
+        round_value=request.round,
+        league_name=request.league_name,
+        competition=request.competition,
+        season=request.season,
+    )
+    source_data["roundLabel"] = request.round_label or source_data.get("roundLabel")
+    source_data["contentType"] = "League Summary"
+    source_data["tone"] = style["tone"]
+    source_data["excitement"] = style["excitement"]
+    source_data["comedic_effect"] = style["comedic_effect"]
+    source_data["writingStyle"] = style["tone"]
 
     new_report = models.Report(
         fixture_id=None,
         report_type="league_summary",
-        tone=request.tone,
+        tone=style["tone"],
         source_data=json.dumps(source_data),
         content=None,
         status="processing",
@@ -647,11 +801,14 @@ def generate_ai_report(
 ):
     try:
         # Convert frontend report settings and match data into a prompt.
+        style = resolve_report_style(
+            request.tone, request.excitement, request.comedic_effect
+        )
         prompt = build_match_report_prompt(
             report_type=request.report_type,
-            tone=request.tone,
-            excitement=request.excitement,
-            comedic_effect=request.comedic_effect,
+            tone=style["tone"],
+            excitement=style["excitement"],
+            comedic_effect=style["comedic_effect"],
             match_data=request.match_data,
         )
 

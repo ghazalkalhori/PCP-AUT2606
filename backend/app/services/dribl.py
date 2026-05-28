@@ -52,6 +52,11 @@ def get_fixture(fixture_id: str):
     return _request_dribl(url)
 
 
+def get_fixture_statistics(fixture_id: str):
+    url = f"{BASE_URL}/fixtures/{fixture_id}/statistics"
+    return _request_dribl(url)
+
+
 def _parse_date_string(value: str, field_name: str) -> date:
     try:
         return datetime.strptime(value, "%Y-%m-%d").date()

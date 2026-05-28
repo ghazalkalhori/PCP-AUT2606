@@ -61,6 +61,8 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
 
   const [writingStyle, setWritingStyle] = useState("Professional");
   const [selectedRound, setSelectedRound] = useState("all");
+  const [roundData, setRoundData] = useState(null);
+  const [isLoadingRoundData, setIsLoadingRoundData] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState("");
 
@@ -69,9 +71,53 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
 
     setWritingStyle("Professional");
     setSelectedRound("all");
+    setRoundData(null);
     setError("");
     setIsGenerating(false);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !data?.id) return undefined;
+
+    let cancelled = false;
+    const leagueId = data.id || data.leagueId || data.league_id;
+
+    async function loadRoundData() {
+      setIsLoadingRoundData(true);
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/leagues/${leagueId}/round-summary-data?round=${selectedRound}`,
+          { headers: getAuthHeaders() },
+        );
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload?.detail || "Could not load round data.");
+        }
+        if (!cancelled) {
+          setRoundData(payload);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setRoundData(null);
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Could not load round summary data.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingRoundData(false);
+        }
+      }
+    }
+
+    loadRoundData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, data, selectedRound]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -105,31 +151,26 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
     setError("");
 
     try {
-      const leagueName = displayValue(data.name || data.league || data.competition, "Selected League");
-      const rawMatchCount = data.matches ?? data.match_count;
-      const numericMatchCount = Number(rawMatchCount);
-      const matches =
-        data.matchList ||
-        data.match_list ||
-        data.fixtures ||
-        (Array.isArray(data.matches) ? data.matches : []);
+      if (!roundData?.matches?.length) {
+        throw new Error("Round data is still loading or no matches were found.");
+      }
 
       const response = await fetch(`${API_BASE_URL}/league-summary/jobs`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
           league_id: data.id || data.leagueId || data.league_id || null,
-          league_name: leagueName,
-          competition: displayValue(data.competition || data.league || leagueName),
-          season: displayValue(data.season),
+          league_name: roundData.leagueName || displayValue(data.name, "Selected League"),
+          competition: roundData.competition || displayValue(data.competition),
+          season: roundData.season || displayValue(data.season),
           round: selectedRound,
           round_label: selectedRoundLabel,
-          matches,
-          match_count: Number.isNaN(numericMatchCount)
-            ? null
-            : numericMatchCount,
+          matches: roundData.matches,
+          match_count: roundData.matchCount,
           status: displayValue(data.status),
           tone: writingStyle.toLowerCase(),
+          excitement: "balanced",
+          comedic_effect: "none",
         }),
       });
 
@@ -261,7 +302,9 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={isGenerating}
+            disabled={
+              isGenerating || isLoadingRoundData || !roundData?.matches?.length
+            }
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 py-4 text-base font-semibold text-white transition-colors hover:bg-green-600 disabled:cursor-wait disabled:opacity-70"
           >
             <Sparkles size={18} />
