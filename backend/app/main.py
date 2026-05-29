@@ -29,6 +29,7 @@ from app.services.ollama import generate_report
 from app.services.report_style_options import get_style_options, resolve_report_style
 from app.services.round_summary_builder import build_round_summary_payload
 
+# Ensure the lightweight SQLite schema exists when the API starts locally.
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
@@ -108,6 +109,7 @@ class ReportPatch(BaseModel):
 def serialize_report(report: models.Report):
     source_data = None
 
+    # Reports store their generation inputs as JSON text so the UI can replay context.
     if getattr(report, "source_data", None):
         try:
             source_data = json.loads(report.source_data)
@@ -152,6 +154,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 
 def get_fixture_from_database(fixture_id: str, db: Session) -> Optional[dict[str, Any]]:
+    # Prefer the synced fixture snapshot to avoid calling Dribl for every report view.
     match = (
         db.query(models.Match)
         .filter(models.Match.fixture_id == str(fixture_id))
@@ -170,6 +173,7 @@ def get_fixture_from_database(fixture_id: str, db: Session) -> Optional[dict[str
 
 
 def get_fixture_data(fixture: dict[str, Any]) -> dict[str, Any]:
+    # Dribl responses may arrive as either a top-level record or wrapped in "data".
     wrapped_data = fixture.get("data")
 
     if isinstance(wrapped_data, dict):
@@ -219,6 +223,7 @@ def load_fixture_payload(fixture_id: str, db: Optional[Session] = None) -> dict[
 def load_statistics_payload(
     fixture_id: str, event_status: Optional[str] = None
 ) -> Optional[dict[str, Any]]:
+    # Statistics are only expected once a match is complete; pending fixtures skip this call.
     if str(event_status or "").lower() != "complete":
         return None
 
@@ -239,6 +244,7 @@ def build_match_bundle(
     fixture: Optional[dict[str, Any]] = None,
     statistics: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
+    # Bundle the raw fixture, optional statistics, and normalized data used by prompts.
     fixture_payload = fixture or load_fixture_payload(fixture_id, db)
     fixture_record = normalize_fixture_record(fixture_payload)
     attributes = fixture_record.get("attributes", {})
@@ -265,6 +271,7 @@ def build_match_bundle(
 def serialize_match(match: models.Match) -> dict[str, Any]:
     raw_fixture: dict[str, Any] = {}
 
+    # Rehydrate the original Dribl payload, then overlay denormalized DB fields.
     if match.raw_json:
         try:
             loaded = json.loads(match.raw_json)
@@ -355,6 +362,7 @@ def build_match_source_data(
     excitement: str = "balanced",
     comedic_effect: str = "none",
 ) -> dict[str, Any]:
+    # Store both display metadata and raw source payloads with each generated report.
     match_data = match_bundle.get("match_data") or {}
     score = score_label_from_match_data(match_data)
     style = resolve_report_style(tone, excitement, comedic_effect)
@@ -430,6 +438,7 @@ def mark_report_generation_failed(
     report: models.Report,
     error: Exception,
 ):
+    # Keep the failure visible in the report list and preserve the error for debugging.
     source_data = {}
 
     if report.source_data:
@@ -453,6 +462,7 @@ def run_report_generation_background(
     excitement: str = "balanced",
     comedic_effect: str = "none",
 ):
+    # Background tasks run outside the request session, so open a fresh DB session here.
     db = SessionLocal()
 
     try:
@@ -477,6 +487,7 @@ def run_report_generation_background(
             raise ValueError("The LLM did not return report content.")
 
         report.content = report_text
+        # Report status moves processing -> complete only after non-empty LLM output.
         report.status = "complete"
         report.tone = style["tone"]
 
@@ -502,6 +513,7 @@ def run_report_generation_background(
 
 
 def run_league_summary_generation_background(report_id: int):
+    # League summaries reuse the same status lifecycle as match reports.
     db = SessionLocal()
 
     try:
@@ -590,6 +602,7 @@ def create_job(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
+    # The UI may send preloaded fixture/statistics data; rebuild normalized data when possible.
     if request.match_data:
         match_bundle = {
             "fixture_id": request.fixture_id,
@@ -699,6 +712,7 @@ def create_league_summary_job(
         request.tone, request.excitement, request.comedic_effect
     )
 
+    # Build round data from synced matches so the backend, not the client, owns summary inputs.
     source_data = build_round_summary_payload(
         db=db,
         league_id=str(request.league_id),
@@ -882,6 +896,7 @@ def patch_report(
         report.source_data = json.dumps(request.source_data)
 
     if request.status is not None:
+        # Keep report workflow states constrained to values the frontend understands.
         allowed_statuses = {
             "processing",
             "complete",
@@ -972,13 +987,12 @@ def sync_dribl(
     return sync_dribl_data(db)
 
 
-# Dashboard summary endpoint.
-# Frontend uses this to show dashboard cards and recent reports.
 @app.get("/dashboard")
 def get_dashboard(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
+    # Dashboard counts are database-backed, so they reflect the latest Dribl sync and jobs.
     excluded_content_statuses = ["processing", "failed"]
 
     matches_count = db.query(func.count(models.Match.id)).scalar() or 0
@@ -1034,7 +1048,6 @@ def get_dashboard(
         .all()
     )
 
-    # Return simple dashboard data
     return {
         "stats": {
             "matches": matches_count,
@@ -1057,7 +1070,6 @@ def get_dashboard(
     }
 
 
-# Get list of fixtures from the local database.
 @app.get("/matches")
 def match_list(
     start_date: Optional[str] = None,
@@ -1067,6 +1079,7 @@ def match_list(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
+    # Matches are served from the local sync cache with backend pagination.
     per_page = 50
     safe_page = max(page, 1)
     query = db.query(models.Match)
@@ -1107,7 +1120,6 @@ def match_list(
     }
 
 
-# Get unique leagues from local fixture data.
 @app.get("/leagues")
 def league_list(
     tenant_name: Optional[str] = None,
@@ -1117,6 +1129,7 @@ def league_list(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
+    # Leagues are derived during sync, then filtered from the local database.
     query = db.query(models.League)
 
     if tenant_name and tenant_name.lower() != "all":

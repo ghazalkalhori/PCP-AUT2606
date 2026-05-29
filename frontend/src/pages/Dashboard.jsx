@@ -180,6 +180,7 @@ export default function Dashboard() {
   const [syncError, setSyncError] = useState("");
 
   async function fetchDashboard({ showLoader = false } = {}) {
+    // Dashboard data comes from database aggregate counts, not from live Dribl calls.
     if (showLoader) {
       setLoading(true);
     }
@@ -226,6 +227,7 @@ export default function Dashboard() {
     setSyncError("");
 
     try {
+      // Sync is long-running enough for a loading state, but still handled as one API call.
       const token = getAuthToken();
       const response = await fetch(`${API_BASE_URL}/sync/dribl`, {
         method: "POST",
@@ -276,7 +278,7 @@ export default function Dashboard() {
     );
   }
 
-  // Create stat cards from backend response
+  // Keep card values close to the backend keys so missing stats degrade to zero.
   const stats = [
     {
       label: "Matches",
@@ -300,7 +302,6 @@ export default function Dashboard() {
     },
   ];
 
-  // Recent reports from backend
   const recentReports = dashboardData?.recent_reports || [];
   const hasSyncedDriblData =
     (dashboardData?.stats?.matches ?? 0) > 0 ||

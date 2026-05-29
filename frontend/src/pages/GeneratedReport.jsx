@@ -115,6 +115,7 @@ function GeneratedReport() {
   const normalizedReportStatus = String(reportStatus || "").toLowerCase();
 
   useEffect(() => {
+    // LLM output is plain markdown-like text; saved drafts may already be HTML.
     if (!generatedReport) {
       setEditableReport("");
       return;
@@ -129,6 +130,7 @@ function GeneratedReport() {
   }, [generatedReport]);
 
   useEffect(() => {
+    // Mirror backend workflow status in local button/badge state.
     if (
       normalizedReportStatus === "approved" ||
       normalizedReportStatus === "published"
@@ -262,6 +264,7 @@ function GeneratedReport() {
 
     try {
       if (reportId) {
+        // Draft saves keep edited HTML content in the existing report row.
         const response = await fetch(`${API_BASE_URL}/reports/${reportId}`, {
           method: "PATCH",
           headers: getAuthHeaders(),
@@ -292,6 +295,7 @@ function GeneratedReport() {
 
     try {
       if (reportId) {
+        // Approval is a status transition plus any latest editor content.
         const response = await fetch(`${API_BASE_URL}/reports/${reportId}`, {
           method: "PATCH",
           headers: getAuthHeaders(),

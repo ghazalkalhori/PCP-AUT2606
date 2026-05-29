@@ -18,6 +18,7 @@ MAX_MATCHES_IN_ROUND_SUMMARY = 40
 
 
 def _load_fixture_dict(match: models.Match) -> dict:
+    # Fall back to denormalized columns when an older synced row has no raw payload.
     if not match.raw_json:
         return {
             "id": match.fixture_id,
@@ -48,6 +49,7 @@ def _summarise_match_entry(
     match: models.Match,
     include_statistics: bool = True,
 ) -> dict[str, Any]:
+    # Completed matches can be enriched with live statistics before prompt generation.
     fixture = _load_fixture_dict(match)
     statistics = None
 
@@ -96,11 +98,13 @@ def build_round_summary_payload(
 
     if round_value not in (None, "", "all"):
         try:
+            # Ignore non-numeric round filters instead of failing the summary request.
             query = query.filter(models.Match.round_number == int(round_value))
         except (TypeError, ValueError):
             pass
 
     total_in_query = query.count()
+    # Limit prompt size so league summaries stay within practical LLM context limits.
     truncated = total_in_query > MAX_MATCHES_IN_ROUND_SUMMARY
 
     matches = (

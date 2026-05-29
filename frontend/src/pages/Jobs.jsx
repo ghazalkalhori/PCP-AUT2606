@@ -208,6 +208,7 @@ function Jobs() {
   const [error, setError] = useState("");
 
   const fetchReports = useCallback(async ({ showLoader = false } = {}) => {
+    // Jobs are persisted reports; the status field tells the UI whether generation is done.
     try {
       if (showLoader) {
         setLoading(true);
@@ -315,6 +316,7 @@ function Jobs() {
   useEffect(() => {
     if (!hasProcessingJobs) return undefined;
 
+    // Poll while any async generation job is still processing.
     const intervalId = window.setInterval(() => {
       fetchReports();
     }, 3000);
@@ -354,6 +356,7 @@ function Jobs() {
   function handleOpenJob(job) {
     if (job.status === "Processing") return;
 
+    // Pass stored source_data through navigation so the report page can show context.
     navigate("/report/result", {
       state: {
         type: job.type === "League Summary" ? "league" : "match",

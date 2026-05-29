@@ -620,6 +620,7 @@ function Matches() {
       const perPage = Number(firstResult.meta.per_page || allRows.length || 50);
 
       if (hasSearch && lastPage > 1) {
+        // Server pagination stays intact; search mode loads all filtered pages locally.
         for (let nextPage = 2; nextPage <= lastPage; nextPage += 1) {
           const nextResult = await getMatchList({
             startDate,
@@ -665,6 +666,7 @@ function Matches() {
 
       setMatches(formattedMatches);
       setPagination({
+        // Search results are paged locally after all matching backend pages are loaded.
         currentPage: hasSearch
           ? 1
           : Number(firstResult.meta.current_page || page || 1),
@@ -734,6 +736,7 @@ function Matches() {
   }
 
   function handleApplyFilters() {
+    // Date validation happens before the backend call so users get instant feedback.
     if (startDateFilter && endDateFilter && startDateFilter > endDateFilter) {
       setError("Start date must be on or before end date.");
       return;
@@ -799,6 +802,7 @@ function Matches() {
     }
 
     if (appliedSearchTerm.trim()) {
+      // In search mode, page changes only move through the locally filtered result set.
       setPagination((current) => ({
         ...current,
         currentPage: nextPage,

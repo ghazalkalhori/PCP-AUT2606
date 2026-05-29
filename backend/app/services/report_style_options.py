@@ -127,6 +127,7 @@ def resolve_report_style(
     comedic_key = _normalise_key(comedic_effect) if comedic_effect else ""
 
     if tone_key in _LEGACY_WRITING_STYLE_MAP:
+        # Older UI labels are still accepted so saved reports and links keep working.
         legacy = _LEGACY_WRITING_STYLE_MAP[tone_key]
         tone_key = legacy["tone"]
         if not excitement_key:

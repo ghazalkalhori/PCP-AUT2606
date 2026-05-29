@@ -139,6 +139,7 @@ function MatchReportModal({ isOpen, onClose, data }) {
     let cancelled = false;
 
     async function loadStyleOptions() {
+      // Style options are backend-owned so prompt controls stay aligned with API support.
       try {
         const response = await fetch(`${API_BASE_URL}/report-style-options`, {
           headers: getAuthHeaders(),
@@ -174,6 +175,7 @@ function MatchReportModal({ isOpen, onClose, data }) {
     let cancelled = false;
 
     async function loadMatchBundle() {
+      // Load the normalized bundle before job creation so the admin can preview LLM inputs.
       setIsLoadingMatchData(true);
       setError("");
 
@@ -287,6 +289,7 @@ function MatchReportModal({ isOpen, onClose, data }) {
       const reportType =
         contentType === "Pre-Match" ? "pre_match" : "post_match";
 
+      // Creating a job returns immediately; the Jobs page polls until generation completes.
       const response = await fetch(`${API_BASE_URL}/jobs`, {
         method: "POST",
         headers: getAuthHeaders(),

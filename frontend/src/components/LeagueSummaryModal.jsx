@@ -83,6 +83,7 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
     const leagueId = data.id || data.leagueId || data.league_id;
 
     async function loadRoundData() {
+      // Round data is fetched on demand so summaries use current database-backed matches.
       setIsLoadingRoundData(true);
       try {
         const response = await fetch(
@@ -155,6 +156,7 @@ function LeagueSummaryModal({ isOpen, onClose, data }) {
         throw new Error("Round data is still loading or no matches were found.");
       }
 
+      // The backend rebuilds and stores the source payload before starting the LLM job.
       const response = await fetch(`${API_BASE_URL}/league-summary/jobs`, {
         method: "POST",
         headers: getAuthHeaders(),

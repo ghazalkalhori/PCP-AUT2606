@@ -18,6 +18,7 @@ def generate_report(prompt: str) -> dict:
 
     url = f"{OLLAMA_URL}/api/generate"
 
+    # Non-streaming keeps the FastAPI job worker simple: one request, one response body.
     payload = {
         "model": OLLAMA_MODEL,
         "prompt": prompt,

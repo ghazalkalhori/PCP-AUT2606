@@ -114,6 +114,7 @@ function Leagues() {
     setError("");
 
     try {
+      // League rows are read from the backend sync cache, not directly from Dribl.
       const response = await fetch(`${API_BASE_URL}/leagues`, {
         method: "GET",
         headers: getAuthHeaders(),
@@ -159,6 +160,7 @@ function Leagues() {
   }, []);
 
   function handleSummaryClick(league) {
+    // The modal loads round-level match data after a league is selected.
     setSelectedLeague(league);
     setModalOpen(true);
   }

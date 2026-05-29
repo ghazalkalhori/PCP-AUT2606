@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 
 def statistics_attributes(statistics: dict | None) -> dict:
+    # Statistics responses may be wrapped in data.attributes or already flattened.
     if not statistics:
         return {}
     data = statistics.get("data")
@@ -27,6 +28,7 @@ def _parse_score_value(value: Any) -> int | None:
 
 
 def extract_scores(fixture_attrs: dict, statistics: dict | None) -> tuple[int | None, int | None]:
+    # Prefer official statistics scores, then fall back to fixture-level score fields.
     stats_attrs = statistics_attributes(statistics)
     score_block = stats_attrs.get("score") or {}
 
@@ -60,6 +62,7 @@ def _team_label(
 def extract_goals(
     statistics: dict | None, fixture_attrs: dict, home_name: str, away_name: str
 ) -> list:
+    # Keep goal events factual and compact for prompt grounding.
     goals = []
     for item in statistics_attributes(statistics).get("goals") or []:
         if not isinstance(item, dict):
@@ -86,6 +89,7 @@ def extract_goals(
 def extract_cards(
     statistics: dict | None, fixture_attrs: dict, home_name: str, away_name: str
 ) -> list:
+    # Cards use the same team-id mapping as goals so the LLM sees readable team names.
     cards = []
     for item in statistics_attributes(statistics).get("cards") or []:
         if not isinstance(item, dict):
@@ -142,6 +146,7 @@ def normalize_fixture_record(fixture: dict) -> dict:
 def normalize_fixture_for_report(
     fixture: dict, statistics: dict | None = None
 ) -> dict:
+    # This is the single report-facing shape shared by match reports and round summaries.
     fixture_record = normalize_fixture_record(fixture)
     attrs = fixture_record.get("attributes", fixture_record)
     if not isinstance(attrs, dict):
@@ -184,6 +189,7 @@ def normalize_fixture_for_report(
     }
 
     if home_score is not None and away_score is not None:
+        # Notes give the prompt a plain-language anchor without inventing match context.
         payload["notes"].append(f"Final score: {home} {home_score} - {away_score} {away}.")
 
     return payload

@@ -50,6 +50,7 @@ class Report(Base):
 class Match(Base):
     __tablename__ = "matches"
 
+    # Synced Dribl fixtures are cached here for fast dashboard/match browsing.
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     fixture_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     league_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -76,6 +77,7 @@ class Match(Base):
 class League(Base):
     __tablename__ = "leagues"
 
+    # League rows are derived from Match records during sync, not fetched directly.
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     league_id: Mapped[str] = mapped_column(String, unique=True, index=True)
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)

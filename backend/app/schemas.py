@@ -6,7 +6,10 @@ from typing import Any, Optional
 
 class GenerateReportRequest(BaseModel):
     """
-    Incoming request from frontend.
+    Incoming direct-generation request from the frontend.
+
+    Most current UI flows create async jobs instead, but this schema still backs
+    the synchronous /reports/generate endpoint.
     """
 
     report_type: str
@@ -18,7 +21,7 @@ class GenerateReportRequest(BaseModel):
 
 class GenerateReportResponse(BaseModel):
     """
-    Response returned back to frontend.
+    Response returned by the synchronous generation endpoint.
     """
 
     success: bool

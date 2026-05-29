@@ -47,6 +47,8 @@ Avoid:
 """
 
 
+# These long-form prompt blocks are intentionally separated so match and league prompts
+# share the same reporting rules while keeping report-type differences explicit.
 REPORT_TYPE_PURPOSE = {
     "post_match": """
 The report is about a completed football match.
@@ -339,6 +341,7 @@ def build_match_report_prompt(
     safe_report_type = _normalise_report_type(report_type)
     report_label = REPORT_TYPE_LABELS[safe_report_type]
 
+    # Resolve dropdown values before prompt assembly so the LLM sees stable guidance.
     style_instructions = get_style_instructions(
         tone=tone,
         excitement=excitement,
@@ -407,6 +410,7 @@ def build_league_summary_prompt(
     comedic_effect: str = "none",
 ) -> str:
     """Build a league / round summary prompt using the same style system as match reports."""
+    # League prompts include a compact overview plus the full JSON for factual grounding.
     style_instructions = get_style_instructions(
         tone=tone,
         excitement=excitement,

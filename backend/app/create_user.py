@@ -11,14 +11,14 @@ Base.metadata.create_all(bind=engine)
 # Open DB session
 db = SessionLocal()
 
-# Login credentials
+# Development seed credentials for the local admin account.
 username = "admin@reporta.ai"
 password = "admin123"
 
 # Hash password
 hashed_password = pwd_context.hash(password)
 
-# Check if this user already exists
+# Re-running the script is safe: the admin password is refreshed in place.
 user = db.query(User).filter(User.username == username).first()
 
 if user:

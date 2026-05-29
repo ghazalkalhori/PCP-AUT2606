@@ -23,11 +23,13 @@ const Sidebar = ({ isOpen = true, setIsOpen }) => {
   const userInitial = displayName?.trim()?.charAt(0)?.toUpperCase() || "A";
 
   function handleLogout() {
+    // Clear local auth state before replacing history so Back does not reopen admin pages.
     clearAuthSession();
     navigate("/login", { replace: true });
   }
 
   function handleNavClick() {
+    // Mobile navigation closes the drawer after a destination is selected.
     setIsOpen?.(false);
   }
 

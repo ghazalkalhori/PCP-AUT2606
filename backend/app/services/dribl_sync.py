@@ -10,6 +10,7 @@ from app.services.dribl import get_fixtures
 
 
 def _as_text(value: Any) -> Optional[str]:
+    # Dribl fields are inconsistent: some labels arrive as strings, others as objects.
     if value is None or value == "":
         return None
 
@@ -74,6 +75,7 @@ def _league_name(attributes: dict[str, Any]) -> str:
 
 
 def _league_status(season: Optional[str]) -> str:
+    # Status is a display heuristic based on season text rather than a Dribl league field.
     current_year = date.today().year
     season_text = str(season or "")
 
@@ -92,6 +94,7 @@ def _apply_match_fields(
     attributes: dict[str, Any],
     synced_at: datetime,
 ) -> None:
+    # Denormalize commonly queried fixture fields while preserving the raw Dribl JSON.
     match.league_id = _league_id(attributes)
     match.league_name = _league_name(attributes)
     match.competition_name = _as_text(attributes.get("competition_name"))
@@ -128,6 +131,7 @@ def _apply_match_fields(
 
 
 def _derive_leagues(db: Session, synced_at: datetime) -> int:
+    # Rebuild league rows from synced matches because Dribl exposes fixtures, not leagues.
     grouped: dict[str, dict[str, Any]] = {}
 
     for match in db.query(models.Match).all():
@@ -201,6 +205,7 @@ def sync_dribl_data(db: Session) -> dict[str, Any]:
 
     try:
         while True:
+            # Pull one Dribl fixture page at a time so large syncs stay memory-light.
             response = get_fixtures(start_date="2020-01-01", page=page)
             fixtures = response.get("data", [])
 
@@ -217,6 +222,7 @@ def sync_dribl_data(db: Session) -> dict[str, Any]:
                 if not fixture_id:
                     continue
 
+                # Upsert by fixture_id so repeat syncs refresh existing rows in place.
                 match = (
                     db.query(models.Match)
                     .filter(models.Match.fixture_id == fixture_id)
@@ -233,6 +239,7 @@ def sync_dribl_data(db: Session) -> dict[str, Any]:
             pages_processed += 1
             db.flush()
 
+            # Dribl pagination metadata tells us when the fixture crawl is complete.
             meta = response.get("meta", {}) if isinstance(response, dict) else {}
             last_page = _as_int(meta.get("last_page")) or page
 

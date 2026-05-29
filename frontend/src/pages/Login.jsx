@@ -1,8 +1,3 @@
-// Login handles user authentication.
-// It sends login credentials to the FastAPI backend,
-// receives a JWT token, stores it in localStorage,
-// and redirects the user to the dashboard after login.
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { storeAuthSession } from "../utils/auth.js";
@@ -58,6 +53,7 @@ function Login() {
     setLoading(true);
 
     try {
+      // FastAPI returns a JWT that utils/auth stores for protected API requests.
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: {

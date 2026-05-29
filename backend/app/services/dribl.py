@@ -19,12 +19,12 @@ headers = {
 }
 
 
-# Helper to send a request to Dribl and handle errors.
 def _request_dribl(url: str, params: Optional[dict] = None):
     """
     Send a request to Dribl and convert connection/API failures into clean HTTP errors.
     """
     try:
+        # curl_cffi impersonation keeps these calls close to the browser-like client Dribl expects.
         response = requests.get(
             url,
             headers=headers,
@@ -75,6 +75,7 @@ def get_fixtures(
     status: Optional[str] = None,
     page: int = 1,
 ):
+    # Validate simple date filters before translating them into Dribl's datetime params.
     start_day = _parse_date_string(start_date, "start_date") if start_date else None
     end_day = _parse_date_string(end_date, "end_date") if end_date else None
 
@@ -102,14 +103,13 @@ def get_fixtures(
     return _request_dribl(url, params=params)
 
 
-# Build a leagues list from fixture data.
-# Dribl does not provide a separate leagues endpoint, so we derive leagues from fixtures.
 def get_leagues_from_fixtures(
     tenant_name: str = "FWW",
     start_date: str = "2020-01-01",
     end_date: Optional[str] = None,
     status: str = "all",
 ):
+    # Legacy helper: derive league summaries by scanning fixture pages from Dribl.
     today = date.today()
     end_day = _parse_date_string(end_date, "end_date") if end_date else None
 
