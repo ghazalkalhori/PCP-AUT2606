@@ -92,6 +92,24 @@ const editorFormats = [
   "link",
 ];
 
+function formatSettingValue(value) {
+  const display = displayValue(value);
+  return display.replace(/_/g, " ");
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div>
+      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+        {label}
+      </p>
+      <p className="text-sm capitalize text-gray-800">
+        {formatSettingValue(value)}
+      </p>
+    </div>
+  );
+}
+
 function GeneratedReport() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -260,21 +278,58 @@ function GeneratedReport() {
     reportData?.report_type ||
     "Not provided";
 
-  const matchDate =
-    [
-      displayValue(reportData?.matchDate, ""),
-      displayValue(reportData?.matchTime, ""),
-    ]
-      .filter(Boolean)
-      .join(" at ") || "Not provided";
-
   const venueName = displayValue(reportData?.venue || data?.venue);
+  const fieldName = displayValue(reportData?.field, "");
+  const matchTime = displayValue(reportData?.matchTime, "");
+  const matchStatus = displayValue(reportData?.status, "");
+  const storedScore =
+    reportData?.score && reportData.score !== "Not available"
+      ? reportData.score
+      : "";
+  const matchScore =
+    displayValue(storedScore, "") ||
+    (
+      reportData?.homeScore !== null &&
+      reportData?.homeScore !== undefined &&
+      reportData?.awayScore !== null &&
+      reportData?.awayScore !== undefined
+        ? `${reportData.homeScore}-${reportData.awayScore}`
+        : ""
+    );
 
   const leagueRound = displayValue(reportData?.roundLabel || reportData?.round, "All rounds");
   const leagueSeason = displayValue(reportData?.season || data?.season);
   const leagueMatches = Array.isArray(reportData?.matches)
     ? displayValue(reportData.matchCount ?? reportData.matches.length)
     : displayValue(reportData?.matchCount ?? reportData?.matches ?? data?.matches);
+  const competitionName = displayValue(reportData?.competition || data?.competition);
+  const sourceRows = isLeagueSummary
+    ? [
+        ["League", leagueName],
+        ["Competition", competitionName],
+        ["Season", leagueSeason],
+        ["Round", leagueRound],
+        ["Match Count", leagueMatches],
+        ["Status", reportData?.status],
+      ]
+    : [
+        ["Home Team", homeTeam],
+        ["Away Team", awayTeam],
+        ["League", leagueName],
+        ["Competition", competitionName],
+        ["Date", displayValue(reportData?.matchDate, "")],
+        ["Time", matchTime],
+        ["Venue/Ground", venueName],
+        ["Field", fieldName],
+        ["Status", matchStatus],
+        ["Score", matchScore],
+      ];
+  const settingsRows = [
+    ["Content Type", selectedContentType],
+    ["Tone", selectedWritingStyle],
+    ["Excitement", reportData?.excitement],
+    ["Comedic Effect", reportData?.comedicEffect || reportData?.comedic_effect],
+  ];
 
   const updateReport = (nextValue) => {
     setEditableReport(nextValue);
@@ -456,79 +511,9 @@ function GeneratedReport() {
           <div className="space-y-4 rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
             <h3 className="text-sm font-bold text-gray-900">Content Details</h3>
             <div className="space-y-3">
-              <div>
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                  League
-                </p>
-
-                <p className="text-sm text-gray-800">{leagueName}</p>
-              </div>
-
-              {isLeagueSummary ? (
-                <>
-                  <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      Round
-                    </p>
-
-                    <p className="text-sm text-gray-800">{leagueRound}</p>
-                  </div>
-
-                  <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      Season
-                    </p>
-
-                    <p className="text-sm text-gray-800">{leagueSeason}</p>
-                  </div>
-
-                  <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      Matches
-                    </p>
-
-                    <p className="text-sm text-gray-800">{leagueMatches}</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      Home Team
-                    </p>
-
-                    <p className="text-sm text-gray-800">
-                      {homeTeam || "Not provided"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      Away Team
-                    </p>
-
-                    <p className="text-sm text-gray-800">
-                      {awayTeam || "Not provided"}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      Date
-                    </p>
-
-                    <p className="text-sm text-gray-800">{matchDate}</p>
-                  </div>
-
-                  <div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-                      Venue
-                    </p>
-
-                    <p className="text-sm text-gray-800">{venueName}</p>
-                  </div>
-                </>
-              )}
+              {sourceRows.map(([label, value]) => (
+                <DetailRow key={label} label={label} value={value} />
+              ))}
             </div>
 
             <div className="space-y-3 border-t border-gray-100 pt-4">
@@ -536,19 +521,9 @@ function GeneratedReport() {
                 AI Settings
               </p>
 
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Tone:</span>
-                <span className="font-semibold capitalize text-gray-800">
-                  {String(selectedWritingStyle)}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Type:</span>
-                <span className="font-semibold capitalize text-gray-800">
-                  {String(selectedContentType).replace("_", " ")}
-                </span>
-              </div>
+              {settingsRows.map(([label, value]) => (
+                <DetailRow key={label} label={label} value={value} />
+              ))}
             </div>
           </div>
 

@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import date, datetime
 from typing import Any, Optional
 
@@ -35,6 +36,100 @@ def _as_int(value: Any) -> Optional[int]:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _as_score_text(value: Any) -> Optional[str]:
+    if value is None or value == "":
+        return None
+
+    if isinstance(value, dict):
+        for key in ("full_time", "score", "total", "goals", "value"):
+            if value.get(key) not in (None, ""):
+                return _as_score_text(value.get(key))
+        return None
+
+    try:
+        return str(int(value))
+    except (TypeError, ValueError):
+        return str(value).strip() or None
+
+
+def _score_from_pair(home_value: Any, away_value: Any) -> tuple[Optional[str], Optional[str]]:
+    home_score = _as_score_text(home_value)
+    away_score = _as_score_text(away_value)
+
+    if home_score is not None and away_score is not None:
+        return home_score, away_score
+
+    return None, None
+
+
+def _score_from_text(value: Any) -> tuple[Optional[str], Optional[str]]:
+    if not isinstance(value, str):
+        return None, None
+
+    match = re.search(r"(\d+)\s*[-:]\s*(\d+)", value)
+    if not match:
+        return None, None
+
+    return match.group(1), match.group(2)
+
+
+def _score_from_block(value: Any) -> tuple[Optional[str], Optional[str]]:
+    if isinstance(value, str):
+        return _score_from_text(value)
+
+    if not isinstance(value, dict):
+        return None, None
+
+    score_pairs = (
+        ("home_score", "away_score"),
+        ("home_team_score", "away_team_score"),
+        ("home_goals", "away_goals"),
+        ("home", "away"),
+    )
+
+    for home_key, away_key in score_pairs:
+        home_score, away_score = _score_from_pair(
+            value.get(home_key),
+            value.get(away_key),
+        )
+
+        if home_score is not None and away_score is not None:
+            return home_score, away_score
+
+    for key in ("score", "result", "match_score", "full_time"):
+        home_score, away_score = _score_from_text(value.get(key))
+
+        if home_score is not None and away_score is not None:
+            return home_score, away_score
+
+    return None, None
+
+
+def _extract_score(attributes: dict[str, Any]) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    score_pairs = (
+        ("home_score", "away_score"),
+        ("home_team_score", "away_team_score"),
+        ("home_goals", "away_goals"),
+    )
+
+    for home_key, away_key in score_pairs:
+        home_score, away_score = _score_from_pair(
+            attributes.get(home_key),
+            attributes.get(away_key),
+        )
+
+        if home_score is not None and away_score is not None:
+            return home_score, away_score, f"{home_score}-{away_score}"
+
+    for key in ("score", "scores", "result", "match_score"):
+        home_score, away_score = _score_from_block(attributes.get(key))
+
+        if home_score is not None and away_score is not None:
+            return home_score, away_score, f"{home_score}-{away_score}"
+
+    return None, None, None
 
 
 def _json_dumps(value: Any) -> str:
@@ -126,6 +221,7 @@ def _apply_match_fields(
     match.event_status = _as_text(attributes.get("event_status"))
     match.matchsheet_status = _as_text(attributes.get("matchsheet_status"))
     match.round_number = _as_int(attributes.get("round_number"))
+    match.home_score, match.away_score, match.score = _extract_score(attributes)
     match.raw_json = _json_dumps(fixture)
     match.synced_at = synced_at
 

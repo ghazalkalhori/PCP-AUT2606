@@ -25,8 +25,8 @@ const columns = [
 ];
 
 const sortOptions = [
-  { value: "date-asc", label: "Date ascending" },
-  { value: "date-desc", label: "Date descending" },
+  { value: "date_asc", label: "Date ascending" },
+  { value: "date_desc", label: "Date descending" },
 ];
 
 const statusFilterOptions = [
@@ -36,12 +36,6 @@ const statusFilterOptions = [
 ];
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
-
-function getTodayDateString() {
-  return new Date().toLocaleDateString("en-CA", {
-    timeZone: "Australia/Sydney",
-  });
-}
 
 const teamAvatarStyles = {
   home: "bg-emerald-100 text-emerald-700 ring-emerald-200",
@@ -258,19 +252,6 @@ function formatDisplayDateTime(localDate, localTime, timezone, utcDatetime) {
   return formatFallbackDateTime(utcDatetime, timezone);
 }
 
-function getSortTimestamp(localDate, localTime, utcDatetime) {
-  if (localDate) {
-    const safeTime = localTime || "00:00:00";
-    return new Date(`${localDate}T${safeTime}`).getTime();
-  }
-
-  if (utcDatetime) {
-    return new Date(utcDatetime).getTime();
-  }
-
-  return 0;
-}
-
 // Result data may be missing in fixture payloads.
 // Detailed score or statistics can later come from GET /matches/{fixture_id}/statistics.
 function getResultMeta(attributes) {
@@ -405,6 +386,19 @@ function EventStatusBadge({ status }) {
   );
 }
 
+function MatchStatusCell({ match }) {
+  return (
+    <div className="flex flex-col items-start gap-1.5">
+      <EventStatusBadge status={match.status} />
+      {match.hasResult && (
+        <span className="inline-flex rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white">
+          {match.result}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function GenerateButton({ onClick, loading = false }) {
   return (
     <button
@@ -483,26 +477,8 @@ function formatMatch(match) {
     },
     result: resultMeta.label,
     hasResult: resultMeta.isAvailable,
-    sortTimestamp: getSortTimestamp(
-      match.local_start_date,
-      match.local_start_time,
-      match.utc_datetime,
-    ),
     homeTeam: createTeam(homeName, match.home_team, "home"),
     awayTeam: createTeam(awayName, match.away_team, "away"),
-    searchValues: [
-      homeName,
-      awayName,
-      match.home_team,
-      match.away_team,
-      match.home_club,
-      match.away_club,
-      match.league_name,
-      match.competition_name,
-      match.ground_name,
-      match.field_name,
-      match.event_status,
-    ],
     raw: match.raw || match,
   };
 }
@@ -512,25 +488,31 @@ async function getMatchList({
   startDate = "",
   endDate = "",
   status = "all",
+  search = "",
+  sort = "date_asc",
   page = 1,
 } = {}) {
   const token = localStorage.getItem("reporta_token");
   const params = new URLSearchParams({ page: String(page) });
-  const today = getTodayDateString();
-  const effectiveStartDate =
-    status === "pending" && !startDate ? today : startDate;
-  const effectiveEndDate = status === "complete" && !endDate ? today : endDate;
 
-  if (effectiveStartDate) {
-    params.set("start_date", effectiveStartDate);
+  if (startDate) {
+    params.set("start_date", startDate);
   }
 
-  if (effectiveEndDate) {
-    params.set("end_date", effectiveEndDate);
+  if (endDate) {
+    params.set("end_date", endDate);
   }
 
   if (status && status !== "all") {
     params.set("status", status);
+  }
+
+  if (search.trim()) {
+    params.set("search", search.trim());
+  }
+
+  if (sort) {
+    params.set("sort", sort);
   }
 
   const response = await fetch(`${API_BASE_URL}/matches?${params}`, {
@@ -575,8 +557,8 @@ function Matches() {
   const [appliedEndDate, setAppliedEndDate] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [appliedStatus, setAppliedStatus] = useState("all");
-  const [sortValue, setSortValue] = useState("date-asc");
-  const [appliedSortValue, setAppliedSortValue] = useState("date-asc");
+  const [sortValue, setSortValue] = useState("date_asc");
+  const [appliedSortValue, setAppliedSortValue] = useState("date_asc");
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [generatingMatchId, setGeneratingMatchId] = useState(null);
@@ -598,6 +580,7 @@ function Matches() {
     endDate = appliedEndDate,
     status = appliedStatus,
     search = appliedSearchTerm,
+    sort = appliedSortValue,
   } = {}) {
     if (showPageLoader) {
       setLoading(true);
@@ -608,30 +591,17 @@ function Matches() {
     setError("");
 
     try {
-      const hasSearch = Boolean(search.trim());
       const firstResult = await getMatchList({
         startDate,
         endDate,
         status,
+        search,
+        sort,
         page,
       });
-      let allRows = firstResult.data || [];
+      const allRows = firstResult.data || [];
       const lastPage = Number(firstResult.meta.last_page || 1);
       const perPage = Number(firstResult.meta.per_page || allRows.length || 50);
-
-      if (hasSearch && lastPage > 1) {
-        // Server pagination stays intact; search mode loads all filtered pages locally.
-        for (let nextPage = 2; nextPage <= lastPage; nextPage += 1) {
-          const nextResult = await getMatchList({
-            startDate,
-            endDate,
-            status,
-            page: nextPage,
-          });
-
-          allRows = [...allRows, ...(nextResult.data || [])];
-        }
-      }
 
       const formattedMatches = allRows.map((match) => {
         const attributes = match.attributes || {};
@@ -666,15 +636,10 @@ function Matches() {
 
       setMatches(formattedMatches);
       setPagination({
-        // Search results are paged locally after all matching backend pages are loaded.
-        currentPage: hasSearch
-          ? 1
-          : Number(firstResult.meta.current_page || page || 1),
-        lastPage: hasSearch ? 1 : lastPage,
+        currentPage: Number(firstResult.meta.current_page || page || 1),
+        lastPage,
         perPage,
-        total: hasSearch
-          ? formattedMatches.length
-          : Number(firstResult.meta.total || formattedMatches.length || 0),
+        total: Number(firstResult.meta.total || formattedMatches.length || 0),
       });
 
       if (selectedMatch) {
@@ -719,6 +684,8 @@ function Matches() {
       startDate: "",
       endDate: "",
       status: "all",
+      search: "",
+      sort: "date_asc",
     });
   }, []);
 
@@ -753,6 +720,7 @@ function Matches() {
       endDate: endDateFilter,
       status: selectedStatus,
       search: searchTerm,
+      sort: sortValue,
     });
   }
 
@@ -765,14 +733,15 @@ function Matches() {
     setAppliedEndDate("");
     setSelectedStatus("all");
     setAppliedStatus("all");
-    setSortValue("date-asc");
-    setAppliedSortValue("date-asc");
+    setSortValue("date_asc");
+    setAppliedSortValue("date_asc");
     loadMatches({
       page: 1,
       startDate: "",
       endDate: "",
       status: "all",
       search: "",
+      sort: "date_asc",
     });
   }
 
@@ -785,13 +754,12 @@ function Matches() {
       endDate: appliedEndDate,
       status: appliedStatus,
       search: appliedSearchTerm,
+      sort: appliedSortValue,
     });
   }
 
   function handlePageChange(nextPage) {
-    const maxPage = appliedSearchTerm.trim()
-      ? displayLastPage
-      : pagination.lastPage;
+    const maxPage = pagination.lastPage;
 
     if (
       nextPage < 1 ||
@@ -801,56 +769,19 @@ function Matches() {
       return;
     }
 
-    if (appliedSearchTerm.trim()) {
-      // In search mode, page changes only move through the locally filtered result set.
-      setPagination((current) => ({
-        ...current,
-        currentPage: nextPage,
-      }));
-      return;
-    }
-
     loadMatches({
       page: nextPage,
       startDate: appliedStartDate,
       endDate: appliedEndDate,
       status: appliedStatus,
+      search: appliedSearchTerm,
+      sort: appliedSortValue,
     });
   }
 
-  // Search and local dropdown filters run on the currently loaded page data.
-  const filteredMatches = matches.filter((match) => {
-    const search = appliedSearchTerm.trim().toLowerCase();
-    const matchesSearch =
-      !search ||
-      match.searchValues.some((value) =>
-        String(value || "")
-          .toLowerCase()
-          .includes(search),
-      );
-    const matchesStatus =
-      appliedStatus === "all" || match.normalizedStatus === appliedStatus;
-    return matchesSearch && matchesStatus;
-  });
-
-  // Sorting stays local so we do not complicate the backend.
-  const sortedMatches = [...filteredMatches].sort((left, right) => {
-    if (appliedSortValue === "date-desc") {
-      return right.sortTimestamp - left.sortTimestamp;
-    }
-    return left.sortTimestamp - right.sortTimestamp;
-  });
-
-  const isSearchMode = Boolean(appliedSearchTerm.trim());
-  const rowsPerPage = pagination.perPage || 50;
-  const localStartIndex = (pagination.currentPage - 1) * rowsPerPage;
-  const visibleMatches = isSearchMode
-    ? sortedMatches.slice(localStartIndex, localStartIndex + rowsPerPage)
-    : sortedMatches;
-  const displayTotal = isSearchMode ? sortedMatches.length : pagination.total;
-  const displayLastPage = isSearchMode
-    ? Math.max(1, Math.ceil(displayTotal / rowsPerPage))
-    : pagination.lastPage;
+  const visibleMatches = matches;
+  const displayTotal = pagination.total;
+  const displayLastPage = pagination.lastPage;
 
   const pageItems = getPageItems(pagination.currentPage, displayLastPage);
   const appliedStatusLabel =
@@ -884,7 +815,7 @@ function Matches() {
                 type="text"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Search current results by team, league, venue, or competition..."
+                placeholder="Search by team, league, venue, or competition..."
                 className={clsx("w-full pl-9 pr-4", controlClassName)}
               />
             </div>
@@ -973,7 +904,7 @@ function Matches() {
 
       {!error && refreshing && <LoadingState message="Updating matches..." />}
 
-      {!error && !refreshing && sortedMatches.length === 0 && (
+      {!error && !refreshing && visibleMatches.length === 0 && (
         <div className="rounded-3xl border border-slate-200 bg-white px-6 py-14 text-center shadow-sm">
           <p className="text-sm font-medium text-slate-700">
             No matches found. Update Dribl data from the Dashboard to sync matches.
@@ -981,7 +912,7 @@ function Matches() {
         </div>
       )}
 
-      {!error && !refreshing && sortedMatches.length > 0 && (
+      {!error && !refreshing && visibleMatches.length > 0 && (
         <>
           <div className="hidden rounded-3xl border border-slate-200 bg-white shadow-sm xl:block">
             <div className="overflow-x-auto rounded-3xl">
@@ -1031,7 +962,7 @@ function Matches() {
                       </td>
 
                       <td className="px-3 py-3 align-middle">
-                        <EventStatusBadge status={match.status} />
+                        <MatchStatusCell match={match} />
                       </td>
 
                       <td className="px-3 py-3 align-middle">
@@ -1058,6 +989,11 @@ function Matches() {
                     <MatchCell match={match} />
                   </div>
                   <EventStatusBadge status={match.status} />
+                  {match.hasResult && (
+                    <span className="shrink-0 rounded-full bg-slate-900 px-2.5 py-1 text-[11px] font-bold text-white">
+                      {match.result}
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">

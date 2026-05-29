@@ -70,6 +70,9 @@ class Match(Base):
     event_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     matchsheet_status: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     round_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    home_score: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    away_score: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    score: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     raw_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     synced_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

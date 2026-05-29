@@ -10,7 +10,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session
 
 from app import models
@@ -31,6 +31,28 @@ from app.services.round_summary_builder import build_round_summary_payload
 
 # Ensure the lightweight SQLite schema exists when the API starts locally.
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_match_score_columns() -> None:
+    required_columns = {
+        "home_score": "VARCHAR",
+        "away_score": "VARCHAR",
+        "score": "VARCHAR",
+    }
+
+    with engine.begin() as connection:
+        existing_columns = {
+            row[1] for row in connection.exec_driver_sql("PRAGMA table_info(matches)")
+        }
+
+        for column_name, column_type in required_columns.items():
+            if column_name not in existing_columns:
+                connection.execute(
+                    text(f"ALTER TABLE matches ADD COLUMN {column_name} {column_type}")
+                )
+
+
+ensure_match_score_columns()
 
 app = FastAPI()
 
@@ -306,6 +328,9 @@ def serialize_match(match: models.Match) -> dict[str, Any]:
         "event_status": match.event_status,
         "matchsheet_status": match.matchsheet_status,
         "round_number": match.round_number,
+        "home_score": match.home_score,
+        "away_score": match.away_score,
+        "score": match.score,
     }
 
     return {
@@ -355,6 +380,87 @@ def build_score(data: dict[str, Any]) -> str:
     return "Not available"
 
 
+def source_data_matches_style(
+    source_data: dict[str, Any],
+    style: dict[str, str],
+) -> bool:
+    return (
+        source_data.get("tone") == style["tone"]
+        and source_data.get("excitement") == style["excitement"]
+        and (
+            source_data.get("comedic_effect") == style["comedic_effect"]
+            or source_data.get("comedicEffect") == style["comedic_effect"]
+        )
+    )
+
+
+def find_duplicate_match_job(
+    db: Session,
+    fixture_id: str,
+    report_type: str,
+    style: dict[str, str],
+) -> Optional[models.Report]:
+    candidates = (
+        db.query(models.Report)
+        .filter(models.Report.fixture_id == str(fixture_id))
+        .filter(models.Report.report_type == report_type)
+        .filter(models.Report.status == "processing")
+        .order_by(models.Report.id.desc())
+        .all()
+    )
+
+    for report in candidates:
+        try:
+            source_data = json.loads(report.source_data or "{}")
+        except json.JSONDecodeError:
+            source_data = {}
+
+        if source_data_matches_style(source_data, style):
+            return report
+
+    return None
+
+
+def find_duplicate_league_summary_job(
+    db: Session,
+    league_id: str,
+    round_value: Any,
+) -> Optional[models.Report]:
+    round_text = str(round_value if round_value not in (None, "") else "all")
+    candidates = (
+        db.query(models.Report)
+        .filter(models.Report.report_type == "league_summary")
+        .filter(models.Report.status == "processing")
+        .order_by(models.Report.id.desc())
+        .all()
+    )
+
+    for report in candidates:
+        try:
+            source_data = json.loads(report.source_data or "{}")
+        except json.JSONDecodeError:
+            source_data = {}
+
+        existing_league_id = str(source_data.get("leagueId") or "")
+        existing_round = str(source_data.get("round") or "all")
+
+        if existing_league_id == str(league_id) and existing_round == round_text:
+            return report
+
+    return None
+
+
+def duplicate_job_response(report: models.Report) -> dict[str, Any]:
+    return {
+        "job_status": "processing",
+        "report_status": "processing",
+        "report_id": report.id,
+        "report": None,
+        "duplicate": True,
+        "message": "A matching report is already being generated.",
+    }
+
+
 def build_match_source_data(
     match_bundle: dict[str, Any],
     report_type: str,
@@ -374,15 +480,21 @@ def build_match_source_data(
         "awayTeam": (match_data.get("awayTeam") or {}).get("name"),
         "league": match_data.get("league"),
         "competition": match_data.get("competition"),
+        "season": match_data.get("season"),
         "venue": match_data.get("venue"),
+        "field": match_data.get("field"),
         "matchDate": match_data.get("date"),
         "matchTime": match_data.get("time"),
         "status": match_data.get("eventStatus"),
         "score": score,
+        "homeScore": (match_data.get("homeTeam") or {}).get("score"),
+        "awayScore": (match_data.get("awayTeam") or {}).get("score"),
         "contentType": report_type,
+        "report_type": report_type,
         "tone": style["tone"],
         "excitement": style["excitement"],
         "comedic_effect": style["comedic_effect"],
+        "comedicEffect": style["comedic_effect"],
         "writingStyle": style["tone"],
         "fixture": match_bundle.get("fixture"),
         "statistics": match_bundle.get("statistics"),
@@ -429,6 +541,11 @@ def build_league_source_data(request: LeagueSummaryJobRequest) -> dict[str, Any]
         "matchCount": request.match_count,
         "status": request.status,
         "contentType": "League Summary",
+        "report_type": "league_summary",
+        "tone": request.tone,
+        "excitement": request.excitement,
+        "comedic_effect": request.comedic_effect,
+        "comedicEffect": request.comedic_effect,
         "writingStyle": request.tone,
     }
 
@@ -602,6 +719,19 @@ def create_job(
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
 ):
+    style = resolve_report_style(
+        request.tone, request.excitement, request.comedic_effect
+    )
+    duplicate_report = find_duplicate_match_job(
+        db=db,
+        fixture_id=request.fixture_id,
+        report_type=request.report_type,
+        style=style,
+    )
+
+    if duplicate_report is not None:
+        return duplicate_job_response(duplicate_report)
+
     # The UI may send preloaded fixture/statistics data; rebuild normalized data when possible.
     if request.match_data:
         match_bundle = {
@@ -631,10 +761,6 @@ def create_job(
             status_code=400,
             detail="Post-match reports are only available for complete matches.",
         )
-
-    style = resolve_report_style(
-        request.tone, request.excitement, request.comedic_effect
-    )
 
     source_data = build_match_source_data(
         match_bundle=match_bundle,
@@ -711,6 +837,14 @@ def create_league_summary_job(
     style = resolve_report_style(
         request.tone, request.excitement, request.comedic_effect
     )
+    duplicate_report = find_duplicate_league_summary_job(
+        db=db,
+        league_id=str(request.league_id),
+        round_value=request.round,
+    )
+
+    if duplicate_report is not None:
+        return duplicate_job_response(duplicate_report)
 
     # Build round data from synced matches so the backend, not the client, owns summary inputs.
     source_data = build_round_summary_payload(
@@ -722,10 +856,13 @@ def create_league_summary_job(
         season=request.season,
     )
     source_data["roundLabel"] = request.round_label or source_data.get("roundLabel")
+    source_data["status"] = request.status or source_data.get("status")
     source_data["contentType"] = "League Summary"
+    source_data["report_type"] = "league_summary"
     source_data["tone"] = style["tone"]
     source_data["excitement"] = style["excitement"]
     source_data["comedic_effect"] = style["comedic_effect"]
+    source_data["comedicEffect"] = style["comedic_effect"]
     source_data["writingStyle"] = style["tone"]
 
     new_report = models.Report(
@@ -1075,6 +1212,8 @@ def match_list(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     status: Optional[str] = None,
+    search: Optional[str] = None,
+    sort: str = "date_asc",
     page: int = 1,
     db: Session = Depends(get_db),
     user: str = Depends(get_current_user),
@@ -1093,16 +1232,43 @@ def match_list(
     if status and status.lower() != "all":
         query = query.filter(func.lower(models.Match.event_status) == status.lower())
 
+    if search and search.strip():
+        search_value = f"%{search.strip().lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(models.Match.home_team).like(search_value),
+                func.lower(models.Match.away_team).like(search_value),
+                func.lower(models.Match.league_name).like(search_value),
+                func.lower(models.Match.competition_name).like(search_value),
+                func.lower(models.Match.ground_name).like(search_value),
+                func.lower(models.Match.field_name).like(search_value),
+                func.lower(models.Match.event_status).like(search_value),
+            )
+        )
+
     total = query.count()
     last_page = max(1, (total + per_page - 1) // per_page)
     safe_page = min(safe_page, last_page)
-
-    matches = (
-        query.order_by(
+    sort_key = sort.strip().lower().replace("-", "_")
+    sort_desc = sort_key in {"date_desc", "newest", "desc"}
+    sort_columns = (
+        (
+            models.Match.local_start_date.desc(),
+            models.Match.local_start_time.desc(),
+            models.Match.utc_datetime.desc(),
+            models.Match.id.desc(),
+        )
+        if sort_desc
+        else (
             models.Match.local_start_date.asc(),
             models.Match.local_start_time.asc(),
+            models.Match.utc_datetime.asc(),
             models.Match.id.asc(),
         )
+    )
+
+    matches = (
+        query.order_by(*sort_columns)
         .offset((safe_page - 1) * per_page)
         .limit(per_page)
         .all()

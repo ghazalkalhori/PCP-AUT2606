@@ -1,40 +1,66 @@
+import sys
+import os
+from pathlib import Path
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+os.chdir(BACKEND_DIR)
+sys.path.insert(0, str(BACKEND_DIR))
+
 from app.db import SessionLocal, engine, Base
 from app.models import User
 from passlib.context import CryptContext
 
-# Password hashing setup
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Create tables if they do not exist
 Base.metadata.create_all(bind=engine)
 
-# Open DB session
-db = SessionLocal()
+TEST_USERS = [
+    {
+        "username": "admin@reporta.ai",
+        "password": "admin123",
+        "role": "admin",
+    },
+    {
+        "username": "ghazal@reporta.ai",
+        "password": "admin123",
+        "role": "admin",
+    },
+    {
+        "username": "chris@reporta.ai",
+        "password": "admin123",
+        "role": "admin",
+    },
+]
 
-# Development seed credentials for the local admin account.
-username = "admin@reporta.ai"
-password = "admin123"
 
-# Hash password
-hashed_password = pwd_context.hash(password)
+def seed_users() -> None:
+    db = SessionLocal()
 
-# Re-running the script is safe: the admin password is refreshed in place.
-user = db.query(User).filter(User.username == username).first()
+    try:
+        for user_data in TEST_USERS:
+            existing_user = (
+                db.query(User)
+                .filter(User.username == user_data["username"])
+                .first()
+            )
 
-if user:
-    # Update password if user exists
-    user.password_hash = hashed_password
-    user.role = "admin"
-    print("User updated successfully")
-else:
-    # Create user if not exists
-    user = User(
-        username=username,
-        password_hash=hashed_password,
-        role="admin",
-    )
-    db.add(user)
-    print("User created successfully")
+            if existing_user:
+                print(f"{user_data['username']} already exists")
+                continue
 
-db.commit()
-db.close()
+            db.add(
+                User(
+                    username=user_data["username"],
+                    password_hash=pwd_context.hash(user_data["password"]),
+                    role=user_data["role"],
+                )
+            )
+            print(f"{user_data['username']} created")
+
+        db.commit()
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    seed_users()

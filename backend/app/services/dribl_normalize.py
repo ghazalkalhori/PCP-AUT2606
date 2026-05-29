@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
 
 
@@ -21,10 +22,57 @@ def statistics_attributes(statistics: dict | None) -> dict:
 def _parse_score_value(value: Any) -> int | None:
     if value is None or value == "":
         return None
+    if isinstance(value, dict):
+        for key in ("full_time", "score", "total", "goals", "value"):
+            parsed = _parse_score_value(value.get(key))
+            if parsed is not None:
+                return parsed
+        return None
     try:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _parse_score_pair_from_text(value: Any) -> tuple[int | None, int | None]:
+    if not isinstance(value, str):
+        return None, None
+
+    match = re.search(r"(\d+)\s*[-:]\s*(\d+)", value)
+    if not match:
+        return None, None
+
+    return int(match.group(1)), int(match.group(2))
+
+
+def _extract_score_from_block(value: Any) -> tuple[int | None, int | None]:
+    if isinstance(value, str):
+        return _parse_score_pair_from_text(value)
+
+    if not isinstance(value, dict):
+        return None, None
+
+    score_pairs = (
+        ("home_score", "away_score"),
+        ("home_team_score", "away_team_score"),
+        ("home_goals", "away_goals"),
+        ("home", "away"),
+    )
+
+    for home_key, away_key in score_pairs:
+        home_score = _parse_score_value(value.get(home_key))
+        away_score = _parse_score_value(value.get(away_key))
+
+        if home_score is not None and away_score is not None:
+            return home_score, away_score
+
+    for key in ("score", "result", "match_score", "full_time"):
+        home_score, away_score = _parse_score_pair_from_text(value.get(key))
+
+        if home_score is not None and away_score is not None:
+            return home_score, away_score
+
+    return None, None
 
 
 def extract_scores(fixture_attrs: dict, statistics: dict | None) -> tuple[int | None, int | None]:
@@ -43,6 +91,13 @@ def extract_scores(fixture_attrs: dict, statistics: dict | None) -> tuple[int | 
         away_score = _parse_score_value(
             fixture_attrs.get("away_score") or fixture_attrs.get("away_team_score")
         )
+
+    if home_score is None or away_score is None:
+        for key in ("score", "scores", "result", "match_score"):
+            home_score, away_score = _extract_score_from_block(fixture_attrs.get(key))
+
+            if home_score is not None and away_score is not None:
+                break
 
     return home_score, away_score
 
