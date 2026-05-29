@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../utils/auth.js";
+import { getReportTitle } from "../utils/reportTitles.js";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -93,32 +94,6 @@ function displaySourceValue(value) {
   return "";
 }
 
-function getReportTitle(report) {
-  const sourceData = report.source_data || {};
-
-  if (sourceData.kind === "league") {
-    const leagueTitle =
-      displaySourceValue(sourceData.leagueName) ||
-      displaySourceValue(sourceData.league) ||
-      displaySourceValue(sourceData.competition);
-
-    return leagueTitle ? `${leagueTitle} Summary` : `League Summary #${report.id}`;
-  }
-
-  const homeTeam =
-    displaySourceValue(sourceData.homeTeam) ||
-    displaySourceValue(sourceData.homeClub);
-  const awayTeam =
-    displaySourceValue(sourceData.awayTeam) ||
-    displaySourceValue(sourceData.awayClub);
-
-  if (homeTeam && awayTeam) {
-    return `${homeTeam} vs ${awayTeam}`;
-  }
-
-  return `Match Report #${report.id}`;
-}
-
 function getReportDetails(report) {
   const sourceData = report.source_data || {};
   const source =
@@ -126,7 +101,11 @@ function getReportDetails(report) {
     displaySourceValue(sourceData.competition) ||
     "Not provided";
 
-  if (sourceData.kind === "league") {
+  if (
+    sourceData.kind === "league" ||
+    sourceData.kind === "round_summary" ||
+    report.report_type?.includes("league")
+  ) {
     return [source, sourceData.roundLabel || sourceData.round, report.report_type]
       .filter(Boolean)
       .join(" • ");

@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Save, Trash2 } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { clsx } from "clsx";
+import { getReportTitle } from "../utils/reportTitles.js";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -113,6 +114,16 @@ function GeneratedReport() {
   } = location.state || {};
 
   const normalizedReportStatus = String(reportStatus || "").toLowerCase();
+  const reportData = data?.source_data || data || {};
+  const reportTitle = getReportTitle({
+    id: reportId,
+    report_type: contentType,
+    source_data: reportData,
+  });
+  const isLeagueSummary =
+    type === "league" ||
+    reportData?.kind === "league" ||
+    reportData?.kind === "round_summary";
 
   useEffect(() => {
     // LLM output is plain markdown-like text; saved drafts may already be HTML.
@@ -162,6 +173,27 @@ function GeneratedReport() {
 
   const wordCount = plainReportText.split(/\s+/).filter(Boolean).length;
 
+  if (normalizedReportStatus === "failed") {
+    return (
+      <div className="flex min-h-full items-center justify-center">
+        <div className="rounded-xl bg-white p-8 text-center shadow-sm">
+          <p className="mb-2 text-base font-semibold text-gray-900">
+            This report failed to generate.
+          </p>
+          <p className="mb-5 text-sm text-gray-500">{reportTitle}</p>
+
+          <button
+            type="button"
+            onClick={() => navigate("/jobs")}
+            className="rounded-lg bg-green-500 px-4 py-2 text-white hover:bg-green-600"
+          >
+            Back to Jobs
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (normalizedReportStatus === "processing") {
     return (
       <div className="flex min-h-full items-center justify-center">
@@ -200,8 +232,6 @@ function GeneratedReport() {
     );
   }
 
-  const reportData = data?.source_data || data || {};
-  const isLeagueSummary = type === "league" || reportData?.kind === "league";
   const homeTeam = displayValue(
     reportData?.homeTeam || reportData?.homeClub || data?.homeTeam,
     "",
@@ -210,11 +240,6 @@ function GeneratedReport() {
     reportData?.awayTeam || reportData?.awayClub || data?.awayTeam,
     "",
   );
-  const fallbackTitle = data?.name || data?.fixtureId || "Saved Report";
-
-  const matchTitle =
-    homeTeam && awayTeam ? `${homeTeam} vs ${awayTeam}` : fallbackTitle;
-
   const leagueName = displayValue(
     reportData?.leagueName ||
       reportData?.league ||
@@ -355,7 +380,7 @@ function GeneratedReport() {
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold text-gray-900">
-              {isLeagueSummary ? "Generated Summary" : "Generated Report"}
+              {reportTitle}
             </h1>
 
             <span

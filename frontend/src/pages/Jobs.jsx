@@ -12,6 +12,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { clsx } from "clsx";
+import { getReportTitle } from "../utils/reportTitles.js";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -99,30 +100,6 @@ function displaySourceValue(value) {
   }
 
   return "";
-}
-
-function getReportTitle(report, sourceData) {
-  if (sourceData.kind === "league") {
-    const leagueTitle =
-      displaySourceValue(sourceData.leagueName) ||
-      displaySourceValue(sourceData.league) ||
-      displaySourceValue(sourceData.competition);
-
-    return leagueTitle ? `${leagueTitle} Summary` : `League Summary #${report.id}`;
-  }
-
-  const homeTeam =
-    displaySourceValue(sourceData.homeTeam) ||
-    displaySourceValue(sourceData.homeClub);
-  const awayTeam =
-    displaySourceValue(sourceData.awayTeam) ||
-    displaySourceValue(sourceData.awayClub);
-
-  if (homeTeam && awayTeam) {
-    return `${homeTeam} vs ${awayTeam}`;
-  }
-
-  return `Match Report #${report.id}`;
 }
 
 function JobStatusIcon({ status }) {
@@ -237,7 +214,7 @@ function Jobs() {
           : null;
 
         const sourceData = report.source_data || {};
-        const title = getReportTitle(report, sourceData);
+        const title = getReportTitle(report);
         const source =
           displaySourceValue(sourceData.league) ||
           displaySourceValue(sourceData.competition) ||
@@ -245,8 +222,12 @@ function Jobs() {
         const dateTime = [sourceData.matchDate, sourceData.matchTime]
           .filter(Boolean)
           .join(" at ");
+        const isLeagueReport =
+          sourceData.kind === "league" ||
+          sourceData.kind === "round_summary" ||
+          report.report_type?.includes("league");
         const detailParts =
-          sourceData.kind === "league"
+          isLeagueReport
             ? [
                 source,
                 sourceData.roundLabel || sourceData.round,
@@ -272,6 +253,7 @@ function Jobs() {
           updatedAt: report.updated_at,
           words,
           report: content,
+          errorSummary: displaySourceValue(sourceData.generation_error),
           icon:
             report.status === "approved" || report.status === "published"
               ? "approved"
@@ -354,7 +336,7 @@ function Jobs() {
   }
 
   function handleOpenJob(job) {
-    if (job.status === "Processing") return;
+    if (job.status === "Processing" || job.status === "Failed") return;
 
     // Pass stored source_data through navigation so the report page can show context.
     navigate("/report/result", {
@@ -499,13 +481,21 @@ function Jobs() {
       ) : (
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="divide-y divide-slate-100">
-            {jobs.map((job) => (
+            {jobs.map((job) => {
+              const isDisabled =
+                job.status === "Processing" || job.status === "Failed";
+
+              return (
               <button
                 key={job.id}
                 type="button"
                 onClick={() => handleOpenJob(job)}
-                disabled={job.status === "Processing"}
-                className="flex w-full flex-col gap-4 px-5 py-4 text-left transition hover:bg-emerald-50/40 disabled:cursor-wait disabled:bg-slate-50/60 disabled:opacity-80 disabled:hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between"
+                disabled={isDisabled}
+                className={clsx(
+                  "flex w-full flex-col gap-4 px-5 py-4 text-left transition hover:bg-emerald-50/40 disabled:bg-slate-50/60 disabled:opacity-80 disabled:hover:bg-slate-50/60 sm:flex-row sm:items-center sm:justify-between",
+                  job.status === "Processing" && "disabled:cursor-wait",
+                  job.status === "Failed" && "disabled:cursor-not-allowed",
+                )}
               >
                 <div className="flex min-w-0 items-start gap-3">
                   <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-100">
@@ -540,13 +530,18 @@ function Jobs() {
                 <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
                   <div className="hidden items-center gap-1.5 text-xs text-slate-500 sm:flex">
                     <FileText size={14} />
-                    {job.words ? `${job.words} words` : "Pending"}
+                    {job.status === "Failed"
+                      ? "Failed"
+                      : job.words
+                        ? `${job.words} words`
+                        : "Pending"}
                   </div>
 
                   <JobStatusBadge status={job.status} />
                 </div>
               </button>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
