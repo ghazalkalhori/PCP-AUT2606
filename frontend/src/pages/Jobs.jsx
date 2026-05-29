@@ -219,9 +219,12 @@ function Jobs() {
           displaySourceValue(sourceData.league) ||
           displaySourceValue(sourceData.competition) ||
           "Not provided";
+        const competition =
+          displaySourceValue(sourceData.competition) || source;
         const dateTime = [sourceData.matchDate, sourceData.matchTime]
           .filter(Boolean)
           .join(" at ");
+        const status = displaySourceValue(sourceData.status);
         const isLeagueReport =
           sourceData.kind === "league" ||
           sourceData.kind === "round_summary" ||
@@ -229,11 +232,11 @@ function Jobs() {
         const detailParts =
           isLeagueReport
             ? [
-                source,
+                competition,
+                sourceData.season,
                 sourceData.roundLabel || sourceData.round,
-                report.report_type,
               ]
-            : [source, dateTime, formatReportType(report.report_type)];
+            : [source, dateTime, status];
         const details = detailParts.filter(Boolean).join(" • ");
         const createdLabel = formatStoredDateTime(report.created_at);
 

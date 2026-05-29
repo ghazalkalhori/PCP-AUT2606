@@ -12,12 +12,14 @@ export function isAuthenticated() {
 export function storeAuthSession(token, email, rememberUser) {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
 
-  if (rememberUser) {
+  if (email) {
     localStorage.setItem(AUTH_USER_KEY, email);
     return;
   }
 
-  localStorage.removeItem(AUTH_USER_KEY);
+  if (!rememberUser) {
+    localStorage.removeItem(AUTH_USER_KEY);
+  }
 }
 
 export function clearAuthSession() {
@@ -38,5 +40,10 @@ export function getStoredUserName() {
     return "Admin";
   }
 
-  return name.charAt(0).toUpperCase() + name.slice(1);
+  return name
+    .replace(/[._-]+/g, " ")
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
 }

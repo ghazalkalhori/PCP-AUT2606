@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app import models
-from app.services.dribl import get_fixtures
+from app.services.dribl import get_fixture, get_fixtures
 
 
 def _as_text(value: Any) -> Optional[str]:
@@ -137,8 +137,46 @@ def _json_dumps(value: Any) -> str:
 
 
 def _fixture_attributes(fixture: dict[str, Any]) -> dict[str, Any]:
-    attributes = fixture.get("attributes", {})
+    fixture_record = _fixture_record(fixture)
+    attributes = fixture_record.get("attributes", {})
     return attributes if isinstance(attributes, dict) else {}
+
+
+def _fixture_record(fixture: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(fixture, dict):
+        return {}
+
+    wrapped_data = fixture.get("data")
+    if isinstance(wrapped_data, dict):
+        return wrapped_data
+
+    return fixture
+
+
+def _merge_fixture_detail(
+    fixture: dict[str, Any],
+    detail_fixture: Optional[dict[str, Any]],
+) -> dict[str, Any]:
+    if not isinstance(detail_fixture, dict):
+        return fixture
+
+    fixture_record = _fixture_record(fixture)
+    detail_record = _fixture_record(detail_fixture)
+
+    if not detail_record:
+        return fixture
+
+    merged_attributes = {
+        **_fixture_attributes(fixture),
+        **_fixture_attributes(detail_fixture),
+    }
+    merged_record = {
+        **fixture_record,
+        **detail_record,
+        "attributes": merged_attributes,
+    }
+
+    return merged_record
 
 
 def _fixture_id(fixture: dict[str, Any], attributes: dict[str, Any]) -> Optional[str]:
@@ -196,13 +234,17 @@ def _apply_match_fields(
     match.season_name = _as_text(attributes.get("season_name"))
     match.tenant_name = _as_text(attributes.get("tenant_name")) or "FWW"
     match.home_team = _as_text(
-        attributes.get("home_team")
+        attributes.get("home_team_friendly_name")
+        or attributes.get("home_team_club_friendly_name")
         or attributes.get("home_club")
+        or attributes.get("home_team")
         or attributes.get("home_team_name")
     )
     match.away_team = _as_text(
-        attributes.get("away_team")
+        attributes.get("away_team_friendly_name")
+        or attributes.get("away_team_club_friendly_name")
         or attributes.get("away_club")
+        or attributes.get("away_team")
         or attributes.get("away_team_name")
     )
     match.home_team_id = _as_text(attributes.get("home_team_id"))
@@ -298,6 +340,8 @@ def sync_dribl_data(db: Session) -> dict[str, Any]:
     page = 1
     pages_processed = 0
     matches_synced = 0
+    details_processed = 0
+    detail_failures = 0
 
     try:
         while True:
@@ -318,6 +362,16 @@ def sync_dribl_data(db: Session) -> dict[str, Any]:
                 if not fixture_id:
                     continue
 
+                detail_fixture = None
+                try:
+                    detail_fixture = get_fixture(fixture_id)
+                    details_processed += 1
+                except Exception:
+                    detail_failures += 1
+
+                fixture_for_storage = _merge_fixture_detail(fixture, detail_fixture)
+                attributes = _fixture_attributes(fixture_for_storage)
+
                 # Upsert by fixture_id so repeat syncs refresh existing rows in place.
                 match = (
                     db.query(models.Match)
@@ -329,7 +383,7 @@ def sync_dribl_data(db: Session) -> dict[str, Any]:
                     match = models.Match(fixture_id=fixture_id)
                     db.add(match)
 
-                _apply_match_fields(match, fixture, attributes, synced_at)
+                _apply_match_fields(match, fixture_for_storage, attributes, synced_at)
                 matches_synced += 1
 
             pages_processed += 1
@@ -361,5 +415,7 @@ def sync_dribl_data(db: Session) -> dict[str, Any]:
         "matches_synced": matches_synced,
         "leagues_synced": leagues_synced,
         "pages_processed": pages_processed,
+        "details_processed": details_processed,
+        "detail_failures": detail_failures,
         "synced_at": synced_at.isoformat(),
     }

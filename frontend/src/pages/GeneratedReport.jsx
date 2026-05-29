@@ -4,7 +4,7 @@ import { ArrowLeft, CheckCircle2, Save, Trash2 } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { clsx } from "clsx";
-import { getReportTitle } from "../utils/reportTitles.js";
+import { cleanTeamName, getReportTitle } from "../utils/reportTitles.js";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -97,13 +97,46 @@ function formatSettingValue(value) {
   return display.replace(/_/g, " ");
 }
 
+function firstValue(...values) {
+  for (const value of values) {
+    const display = displayValue(value, "");
+
+    if (display) return display;
+  }
+
+  return "";
+}
+
+function getFixtureAttributes(reportData) {
+  const fixture = reportData?.fixture || {};
+  const fixtureData = fixture.data || fixture;
+  const attributes = fixtureData.attributes || {};
+
+  return typeof attributes === "object" && attributes !== null ? attributes : {};
+}
+
+function getDivisionLabel(league, competition) {
+  const leagueValue = displayValue(league, "");
+  const competitionValue = displayValue(competition, "");
+
+  if (!leagueValue || !competitionValue) return leagueValue;
+  if (leagueValue.toLowerCase() === competitionValue.toLowerCase()) return "";
+
+  const prefix = `${competitionValue} - `;
+  if (leagueValue.toLowerCase().startsWith(prefix.toLowerCase())) {
+    return leagueValue.slice(prefix.length).trim();
+  }
+
+  return leagueValue;
+}
+
 function DetailRow({ label, value }) {
   return (
     <div>
       <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
         {label}
       </p>
-      <p className="text-sm capitalize text-gray-800">
+      <p className="text-sm text-gray-800">
         {formatSettingValue(value)}
       </p>
     </div>
@@ -250,13 +283,31 @@ function GeneratedReport() {
     );
   }
 
-  const homeTeam = displayValue(
-    reportData?.homeTeam || reportData?.homeClub || data?.homeTeam,
-    "",
+  const fixtureAttributes = getFixtureAttributes(reportData);
+  const matchData = reportData?.match_data || {};
+  const homeTeam = cleanTeamName(
+    firstValue(
+      reportData?.homeTeam,
+      reportData?.homeClub,
+      matchData?.homeTeam?.name,
+      fixtureAttributes.home_team_friendly_name,
+      fixtureAttributes.home_team_club_friendly_name,
+      fixtureAttributes.home_club,
+      fixtureAttributes.home_team,
+      data?.homeTeam,
+    ),
   );
-  const awayTeam = displayValue(
-    reportData?.awayTeam || reportData?.awayClub || data?.awayTeam,
-    "",
+  const awayTeam = cleanTeamName(
+    firstValue(
+      reportData?.awayTeam,
+      reportData?.awayClub,
+      matchData?.awayTeam?.name,
+      fixtureAttributes.away_team_friendly_name,
+      fixtureAttributes.away_team_club_friendly_name,
+      fixtureAttributes.away_club,
+      fixtureAttributes.away_team,
+      data?.awayTeam,
+    ),
   );
   const leagueName = displayValue(
     reportData?.leagueName ||
@@ -278,10 +329,32 @@ function GeneratedReport() {
     reportData?.report_type ||
     "Not provided";
 
-  const venueName = displayValue(reportData?.venue || data?.venue);
-  const fieldName = displayValue(reportData?.field, "");
-  const matchTime = displayValue(reportData?.matchTime, "");
-  const matchStatus = displayValue(reportData?.status, "");
+  const venueName = firstValue(
+    reportData?.venue,
+    matchData?.venue,
+    fixtureAttributes.ground_name,
+    data?.venue,
+  );
+  const fieldName = firstValue(
+    reportData?.field,
+    matchData?.field,
+    fixtureAttributes.field_name,
+  );
+  const matchTime = firstValue(
+    reportData?.matchTime,
+    matchData?.time,
+    fixtureAttributes.local_start_time,
+  );
+  const matchDateValue = firstValue(
+    reportData?.matchDate,
+    matchData?.date,
+    fixtureAttributes.local_start_date,
+  );
+  const matchStatus = firstValue(
+    reportData?.status,
+    matchData?.eventStatus,
+    fixtureAttributes.event_status,
+  );
   const storedScore =
     reportData?.score && reportData.score !== "Not available"
       ? reportData.score
@@ -303,10 +376,15 @@ function GeneratedReport() {
     ? displayValue(reportData.matchCount ?? reportData.matches.length)
     : displayValue(reportData?.matchCount ?? reportData?.matches ?? data?.matches);
   const competitionName = displayValue(reportData?.competition || data?.competition);
+  const divisionName = getDivisionLabel(leagueName, competitionName);
   const sourceRows = isLeagueSummary
     ? [
-        ["League", leagueName],
         ["Competition", competitionName],
+        ...(divisionName
+          ? [["Division/League", divisionName]]
+          : !competitionName && leagueName
+            ? [["League", leagueName]]
+            : []),
         ["Season", leagueSeason],
         ["Round", leagueRound],
         ["Match Count", leagueMatches],
@@ -315,21 +393,26 @@ function GeneratedReport() {
     : [
         ["Home Team", homeTeam],
         ["Away Team", awayTeam],
-        ["League", leagueName],
         ["Competition", competitionName],
-        ["Date", displayValue(reportData?.matchDate, "")],
+        ...(divisionName ? [["Division/League", divisionName]] : []),
+        ["Date", matchDateValue],
         ["Time", matchTime],
         ["Venue/Ground", venueName],
-        ["Field", fieldName],
+        ...(fieldName ? [["Field", fieldName]] : []),
         ["Status", matchStatus],
-        ["Score", matchScore],
+        ...(matchScore ? [["Score", matchScore]] : []),
       ];
-  const settingsRows = [
-    ["Content Type", selectedContentType],
-    ["Tone", selectedWritingStyle],
-    ["Excitement", reportData?.excitement],
-    ["Comedic Effect", reportData?.comedicEffect || reportData?.comedic_effect],
-  ];
+  const settingsRows = isLeagueSummary
+    ? [
+        ["Writing Style", selectedWritingStyle],
+        ["Round", leagueRound],
+      ]
+    : [
+        ["Content Type", selectedContentType],
+        ["Tone", selectedWritingStyle],
+        ["Excitement", reportData?.excitement],
+        ["Comedic Effect", reportData?.comedicEffect || reportData?.comedic_effect],
+      ];
 
   const updateReport = (nextValue) => {
     setEditableReport(nextValue);

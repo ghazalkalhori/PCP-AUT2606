@@ -19,6 +19,43 @@ function displayReportValue(value) {
   return "";
 }
 
+export function cleanTeamName(value) {
+  let teamName = displayReportValue(value).trim();
+
+  if (!teamName) return "";
+
+  const suffixPatterns = [
+    /\s+Youth\s+U18\s+Mixed$/i,
+    /\s+Youth\s+U18\s+\d{1,2}\s+(Male|Female|Mixed)$/i,
+    /\s+U18\s+Mixed$/i,
+    /\s+U18$/i,
+    /\s+Youth$/i,
+    /\s+Mixed$/i,
+    /\s+\d{1,2}\s+Female$/i,
+    /\s+\d{1,2}\s+Male$/i,
+    /\s+Female$/i,
+    /\s+Male$/i,
+    /\s+Men$/i,
+    /\s+Women$/i,
+  ];
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+
+    for (const pattern of suffixPatterns) {
+      const nextName = teamName.replace(pattern, "").trim();
+
+      if (nextName && nextName !== teamName) {
+        teamName = nextName;
+        changed = true;
+      }
+    }
+  }
+
+  return teamName;
+}
+
 function getReportTypeLabel(reportType) {
   const type = String(reportType || "").toLowerCase();
 
@@ -94,11 +131,11 @@ export function getReportTitle(report = {}) {
   }
 
   const homeTeam =
-    displayReportValue(sourceData.homeTeam) ||
-    displayReportValue(sourceData.homeClub);
+    cleanTeamName(sourceData.homeTeam) ||
+    cleanTeamName(sourceData.homeClub);
   const awayTeam =
-    displayReportValue(sourceData.awayTeam) ||
-    displayReportValue(sourceData.awayClub);
+    cleanTeamName(sourceData.awayTeam) ||
+    cleanTeamName(sourceData.awayClub);
   const typeLabel = getReportTypeLabel(report.report_type || sourceData.contentType);
 
   if (homeTeam && awayTeam) {
