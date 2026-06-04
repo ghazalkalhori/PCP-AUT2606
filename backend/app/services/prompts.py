@@ -67,11 +67,11 @@ write as if the match has finished. Do not predict a final score or invent rival
 """,
     "round_summary": """
 The report is about a football round or league — one Football NSW-style match review
-per completed fixture, plus a plain-text UPCOMING FIXTURES list at the end.
+per completed fixture, plus a plain-text upcoming fixtures list at the end.
 
-Write like a sports journalist: each finished match is its own self-contained block.
-Do not write a round-wide essay, week summary, conclusion, league standings section,
-or configuration metadata in the output.
+Write like a published round review journalist: each finished match is its own
+self-contained article block. Do not write one round-wide essay with sub-headings or
+bullet lists. Mention ladder or table movement only if supplied in the JSON.
 """,
 }
 
@@ -113,6 +113,11 @@ Structure (no # headline — start with the lead paragraph):
 Omit sections with no supporting data. Do not use ## Data Note.
 """,
     "round_summary": """
+Output plain text only — no markdown characters (no **, *, --, #, bullets, or tables).
+
+Optional one-line round opener (only if roundLabel, competition, or season are in the JSON):
+state the round and competition in one sentence, then a blank line. Omit if not supplied.
+
 For EACH completed match (homeScore and awayScore both present), use this structure exactly:
 
 1. Match heading on its own line in ALL CAPS:
@@ -120,26 +125,29 @@ For EACH completed match (homeScore and awayScore both present), use this struct
    Example: HAKOAH FC 1-2 BANKSTOWN CITY
    Blank line after the heading.
 
-2. Two to three flowing prose paragraphs:
+2. Two to four flowing prose paragraphs:
    - Opening sentence: result context and venue if venue is in the JSON.
-   - Weave goal scorers, minutes, and cards into the narrative — never as a separate list or sub-heading.
-   - Transition sentences between paragraphs are encouraged for flow, but must only connect facts
-     already in the JSON. They must not add player names, venues, scorelines, or events.
-   - If data is sparse (score and teams only), write one short factual paragraph — do not invent details.
+   - Weave goal scorers and minutes into the narrative when goals[] supplies them.
+   - Mention cards or standout players in prose when cards[] or goals[] supplies them.
+   - No bullet points, no sub-headings (no "Key Performances:", no "Disciplinary Actions:").
+   - If data is sparse (score and teams only), write a short factual paragraph — do not invent details.
 
-3. Plain text goal summary after the paragraphs:
+3. Goal summary lines (plain text, after the paragraphs):
    [Home Team] [home score] (Scorer minute', Scorer minute' ...)
    [Away Team] [away score] (Scorer minute' ...)
-   Use apostrophe after minutes (e.g. 25', 45+'). Omit scorer parentheses when goals[] has no entry for that team.
+   Use apostrophe after minutes (e.g. 25', 45+'). Omit scorer parentheses for a team with no goals in goals[].
    Blank line after these two lines before the next match block.
 
 Process every completed match in matches[] in a sensible order (e.g. date, or as listed).
 
-At the bottom, after all completed match blocks (only if pending fixtures exist):
+At the bottom, after all completed match blocks:
 
 UPCOMING FIXTURES
+
+List each match without scores (homeScore or awayScore null, or status indicates not played):
 [Home Team] vs [Away Team] | [Date] | [Time] | [Venue]
-One fixture per line for matches without both scores. Omit missing date, time, or venue — do not invent them.
+One fixture per line. Omit date, time, or venue segments only when that field is missing in the JSON
+(use fewer pipes rather than inventing values). If no pending fixtures, omit the entire section.
 """,
 }
 
@@ -237,26 +245,18 @@ How to read the round-summary JSON:
 - Use matches[] as the only source for results and incidents. Do not invent other fixtures.
 - If matchesWithScores is 0, write about fixtures and context without inventing results.
 - If notes[] mentions truncation, do not claim you covered every match in the competition.
-- Ignore JSON fields used only for generation settings (tone, excitement, comedicEffect, report_type,
-  contentType, status) — never echo them in the article.
-- Do not output a league standings or ladder table even if ladder data appears in the JSON.
+- Group stories by theme (big wins, close games, upsets) only when the JSON supports that reading.
 """
 
 
-ROUND_SUMMARY_STRICT_RULES = """
-STRICT RULES — follow all without exception:
-- Plain text only. No markdown: no **, *, --, #, bullet points, numbered lists, pipe tables,
-  or dashes used as section dividers.
-- No sub-headings inside match sections: no "Key Performances:", "Match Highlights:", "Week Summary:",
-  "Notes:", "Conclusion:", or dated headers such as "Upcoming Matches (date):".
-- Do not append metadata at the end: no League Status, Report Type, Tone, Excitement Level,
-  Comedic Effect, or similar configuration fields.
-- Do not include a League Standings table or section.
-- Do not fabricate information. Limited data → short factual prose is acceptable.
-- Transition sentences may improve readability but must not introduce invented facts.
-- Write like a sports journalist, not a data report.
-- Australian English spelling. Match tone/excitement/comedic effect in prose only — never list settings.
+ROUND_SUMMARY_WRITING_RULES = """
+Round summary writing rules:
+- Plain text only. No markdown: no **, *, --, #, bullet points, or numbered lists.
+- Australian English spelling and phrasing.
+- Scale each match block to the data: rich goals[]/cards[] → fuller paragraphs; score-only → short factual prose.
 - Do not output raw JSON, editor notes, or AI commentary.
+- Respect tone, excitement, and comedic effect without breaking factual accuracy.
+- The output is a draft for admin review, not final publication.
 """
 
 ROUND_SUMMARY_EXAMPLE = """
@@ -266,7 +266,9 @@ BLACKTOWN SPARTANS 4-1 WESTERN CITY RANGERS
 
 League leaders Blacktown Spartans compounded the woes of Western City Rangers with a comfortable 4-1 win in Friday night action.
 
-After a competitive start to the contest, the hosts were able to establish control as the first half went on. Darcy Ellem opened the scoring with his 11th goal of the campaign in the 25th minute, followed by a Sulleyman Bangura brace in the 29th and 40th minutes, sending them into cruise control.
+After a competitive start to the contest, the hosts were able to establish control as the first half went on. Darcy Ellem opened the scoring with his 11th goal of the campaign in the 25th minute, followed by a Sulleyman Bangura brace in the 29th and 40th minutes, sending them into cruise control. Austen Booth completed their first-half dominance with a stoppage-time goal.
+
+With the result beyond doubt, there was a lack of rhythm in the second half before Thomas Lopez scored a late consolation goal in the 89th minute.
 
 Blacktown Spartans 4 (Ellem 25', Bangura 29', 40', Booth 45+')
 Western City Rangers 1 (Lopez 89')
@@ -274,14 +276,14 @@ Western City Rangers 1 (Lopez 89')
 
 ROUND_SUMMARY_QUALITY_CHECK = """
 Before writing a round summary, silently check:
-1. Which matches have both homeScore and awayScore — write a full block for each (heading, 2–3 paragraphs, goal lines).
+1. Which matches have both homeScore and awayScore — write a full block for each using the structure above.
 2. Which matches lack scores — list only under UPCOMING FIXTURES, never as finished results.
 3. For each goal line, use only players and minutes from goals[] for that fixture.
-4. For cards, mention only players and card types from cards[] when woven into prose.
-5. No standings section, no metadata footer, no markdown, no sub-headings.
-6. Does every sentence trace to match facts in the JSON? Remove generic filler.
+4. For cards, mention only players and card types from cards[] when you include them in prose.
+5. Is ladder/table data present? If not, omit ladder commentary entirely.
+6. Will every sentence trace to the JSON? Remove generic filler.
 
-Output only the finished plain-text article. No checklist, no preamble.
+Output only the finished plain-text article. No checklist, no preamble, no markdown.
 """
 
 
@@ -529,7 +531,7 @@ Round overview (planning only — do not quote these labels verbatim):
 Data availability hint (for your planning only — do not quote this in the article):
 {data_availability_hint}
 
-{ROUND_SUMMARY_STRICT_RULES}
+{ROUND_SUMMARY_WRITING_RULES}
 
 {GLOBAL_ANTI_HALLUCINATION_RULES}
 
@@ -540,8 +542,9 @@ Article structure:
 
 Output requirements:
 - Return only the finished draft article as plain text.
-- Start directly with the first match heading (or UPCOMING FIXTURES if no completed matches).
-- Do not add a round opener, week summary, conclusion, standings table, or configuration metadata.
+- No markdown characters of any kind.
+- No round-wide bullet lists, score tables, or sub-headings such as Key Performances or Disciplinary Actions.
+- Do not fabricate goal minutes, player names, venues, or narrative details not present in the JSON.
 
 {ROUND_SUMMARY_QUALITY_CHECK}
 
