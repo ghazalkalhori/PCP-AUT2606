@@ -4,6 +4,7 @@ import { ArrowLeft, CheckCircle2, Save, Trash2 } from "lucide-react";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { clsx } from "clsx";
+import { marked } from "marked";
 import { cleanTeamName, getReportTitle } from "../utils/reportTitles.js";
 
 const API_BASE_URL =
@@ -39,25 +40,33 @@ function displayValue(value, fallback = "Not provided") {
   return fallback;
 }
 
+/**
+ * Extract the inner content from a ```md ... ``` fence if present,
+ * then convert markdown to HTML using `marked`.
+ * Falls back to a simple line-by-line conversion for legacy plain-text content.
+ */
 function convertTextToHtml(text) {
   if (!text) return "";
 
+  // Extract content from ```md ... ``` block produced by the LLM.
+  const fenceMatch = text.match(/^```(?:md|markdown)?\s*\n([\s\S]*?)```\s*$/m);
+  if (fenceMatch) {
+    return marked.parse(fenceMatch[1].trim());
+  }
+
+  // If the whole text looks like markdown (contains ##, **, or - lists) parse it directly.
+  if (/^#{1,6} |^\*\*|^- |\*\*/.test(text)) {
+    return marked.parse(text);
+  }
+
+  // Legacy fallback for older plain-text reports already stored in the database.
   return text
     .split("\n")
     .map((line) => {
       if (!line.trim()) return "<p><br /></p>";
-      if (line.startsWith("### ")) {
-        return `<h1>${line.replace("### ", "")}</h1>`;
-      }
-
-      if (line.startsWith("#### ")) {
-        return `<h2>${line.replace("#### ", "")}</h2>`;
-      }
-
-      if (line.startsWith("- ")) {
-        return `<p>• ${line.replace("- ", "")}</p>`;
-      }
-
+      if (line.startsWith("### ")) return `<h1>${line.slice(4)}</h1>`;
+      if (line.startsWith("#### ")) return `<h2>${line.slice(5)}</h2>`;
+      if (line.startsWith("- ")) return `<p>• ${line.slice(2)}</p>`;
       return `<p>${line}</p>`;
     })
     .join("");

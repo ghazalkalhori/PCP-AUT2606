@@ -25,7 +25,7 @@ from app.services.dribl_normalize import (
 
 from app.schemas import GenerateReportRequest, GenerateReportResponse
 from app.services.prompts import build_league_summary_prompt, build_match_report_prompt
-from app.services.ollama import generate_report
+from app.services.ollama import generate_report, generate_report_ollama_langchain
 from app.services.report_style_options import get_style_options, resolve_report_style
 from app.services.round_summary_builder import build_round_summary_payload
 
@@ -508,7 +508,7 @@ def build_report_prompt(
     tone: str,
     excitement: str = "balanced",
     comedic_effect: str = "none",
-) -> str:
+) -> tuple[str, str]:
     style = resolve_report_style(tone, excitement, comedic_effect)
     return build_match_report_prompt(
         report_type=report_type,
@@ -590,14 +590,15 @@ def run_report_generation_background(
 
         style = resolve_report_style(tone, excitement, comedic_effect)
         match_data = match_bundle.get("match_data") or {}
-        prompt = build_report_prompt(
+        system_prompt, human_prompt = build_report_prompt(
             match_data,
             report_type,
             style["tone"],
             style["excitement"],
             style["comedic_effect"],
         )
-        result = generate_report(prompt)
+        # result = generate_report(system_prompt + "\n\n" + human_prompt)
+        result = generate_report_ollama_langchain(system_prompt, human_prompt)
         report_text = result.get("report", "").strip()
 
         if not report_text:
@@ -645,13 +646,14 @@ def run_league_summary_generation_background(report_id: int):
             source_data.get("excitement"),
             source_data.get("comedic_effect"),
         )
-        prompt = build_league_summary_prompt(
+        system_prompt, human_prompt = build_league_summary_prompt(
             tone=style["tone"],
             league_data=source_data,
             excitement=style["excitement"],
             comedic_effect=style["comedic_effect"],
         )
-        result = generate_report(prompt)
+        # result = generate_report(system_prompt + "\n\n" + human_prompt)
+        result = generate_report_ollama_langchain(system_prompt, human_prompt)
         report_text = result.get("report", "").strip()
 
         if not report_text:
@@ -964,7 +966,8 @@ def generate_ai_report(
         )
 
         # Send the prompt to Ollama and receive generated text.
-        result = generate_report(prompt)
+        # result = generate_report(prompt)
+        result = generate_report_ollama_langchain("", prompt)
 
         return GenerateReportResponse(
             success=True,

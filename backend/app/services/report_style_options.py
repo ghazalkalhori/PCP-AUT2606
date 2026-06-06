@@ -188,3 +188,19 @@ def get_style_instructions(tone: str, excitement: str, comedic_effect: str) -> d
         "excitement_key": resolved["excitement"],
         "comedic_effect_key": resolved["comedic_effect"],
     }
+
+
+def build_style_block(tone: str, excitement: str, comedic_effect: str) -> str:
+    """
+    Return the fully-assembled writing-style section for inclusion in a system message.
+
+    Handles normalisation and fallback defaults internally so callers never need to
+    call get_style_instructions() and hand-format the result themselves.
+    """
+    instructions = get_style_instructions(tone, excitement, comedic_effect)
+    return (
+        f"Selected writing style:\n"
+        f"Tone:\n{instructions['tone']}\n\n"
+        f"Excitement:\n{instructions['excitement']}\n\n"
+        f"Comedic effect:\n{instructions['comedic_effect']}"
+    )
