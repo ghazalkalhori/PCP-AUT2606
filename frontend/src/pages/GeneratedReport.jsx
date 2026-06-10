@@ -41,8 +41,20 @@ function displayValue(value, fallback = "Not provided") {
 }
 
 /**
+ * Parse a single markdown block (no blank lines inside) to HTML.
+ * Uses `breaks: true` so single \n becomes <br> within a paragraph.
+ */
+function parseMarkdownBlock(block) {
+  const trimmed = block.trim();
+  if (!trimmed) return "<p><br></p>";
+  return marked.parse(trimmed, { breaks: true });
+}
+
+/**
  * Extract the inner content from a ```md ... ``` fence if present,
  * then convert markdown to HTML using `marked`.
+ * Double newlines (\n\n) are preserved as visible blank lines by inserting
+ * an explicit empty paragraph between each block.
  * Falls back to a simple line-by-line conversion for legacy plain-text content.
  */
 function convertTextToHtml(text) {
@@ -51,12 +63,21 @@ function convertTextToHtml(text) {
   // Extract content from ```md ... ``` block produced by the LLM.
   const fenceMatch = text.match(/^```(?:md|markdown)?\s*\n([\s\S]*?)```\s*$/m);
   if (fenceMatch) {
-    return marked.parse(fenceMatch[1].trim(), { breaks: true });
+    // Split on two-or-more consecutive newlines to get distinct paragraph blocks.
+    // Each block is parsed separately, then joined with an empty <p> to produce a
+    // visible blank line between sections in the editor.
+    const blocks = fenceMatch[1].trim().split(/\n{2,}/);
+    return blocks
+      .map(parseMarkdownBlock)
+      .join("<p><br></p>");
   }
 
   // If the whole text looks like markdown (contains ##, **, or - lists) parse it directly.
   if (/^#{1,6} |^\*\*|^- |\*\*/.test(text)) {
-    return marked.parse(text, { breaks: true });
+    const blocks = text.trim().split(/\n{2,}/);
+    return blocks
+      .map(parseMarkdownBlock)
+      .join("<p><br></p>");
   }
 
   // Legacy fallback for older plain-text reports already stored in the database.
