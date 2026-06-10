@@ -51,12 +51,12 @@ function convertTextToHtml(text) {
   // Extract content from ```md ... ``` block produced by the LLM.
   const fenceMatch = text.match(/^```(?:md|markdown)?\s*\n([\s\S]*?)```\s*$/m);
   if (fenceMatch) {
-    return marked.parse(fenceMatch[1].trim());
+    return marked.parse(fenceMatch[1].trim(), { breaks: true });
   }
 
   // If the whole text looks like markdown (contains ##, **, or - lists) parse it directly.
   if (/^#{1,6} |^\*\*|^- |\*\*/.test(text)) {
-    return marked.parse(text);
+    return marked.parse(text, { breaks: true });
   }
 
   // Legacy fallback for older plain-text reports already stored in the database.
