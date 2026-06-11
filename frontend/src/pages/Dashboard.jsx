@@ -2,10 +2,10 @@
 // It loads dashboard data from FastAPI using the saved JWT token.
 
 import { useEffect, useState } from "react";
-import { Loader2, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getAuthToken } from "../utils/auth.js";
 import { getReportTitle } from "../utils/reportTitles.js";
+import { CalendarDays, ClipboardList, Loader2, RefreshCw, Trophy } from "lucide-react";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
@@ -59,9 +59,8 @@ function DashboardStatusBadge({ status }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
-        styles[normalizedStatus] || "bg-slate-50 text-slate-600 ring-slate-100"
-      }`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${styles[normalizedStatus] || "bg-slate-50 text-slate-600 ring-slate-100"
+        }`}
     >
       {label}
     </span>
@@ -223,8 +222,7 @@ export default function Dashboard() {
       }
 
       setSyncMessage(
-        `Dribl data updated: ${result.matches_synced ?? 0} matches and ${
-          result.leagues_synced ?? 0
+        `Dribl data updated: ${result.matches_synced ?? 0} matches and ${result.leagues_synced ?? 0
         } leagues synced.`,
       );
       await fetchDashboard();
@@ -262,22 +260,17 @@ export default function Dashboard() {
     {
       label: "Matches",
       value: dashboardData?.stats?.matches ?? 0,
-      icon: "📅",
-    },
-    {
-      label: "Jobs",
-      value: dashboardData?.stats?.jobs ?? 0,
-      icon: "💼",
+      icon: CalendarDays,
     },
     {
       label: "Leagues",
       value: dashboardData?.stats?.leagues ?? 0,
-      icon: "🏆",
+      icon: Trophy,
     },
     {
-      label: "Content/Reports",
-      value: dashboardData?.stats?.content ?? 0,
-      icon: "📄",
+      label: "Reports",
+      value: dashboardData?.stats?.jobs ?? 0,
+      icon: ClipboardList,
     },
   ];
 
@@ -380,47 +373,38 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {stats.map((s, i) => (
-          <div
-            key={s.label}
-            style={{
-              background: "white",
-              borderRadius: 12,
-              padding: "20px 24px",
-              border: "1px solid #E5E7EB",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-              opacity: visible ? 1 : 0,
-              transform: visible ? "translateY(0)" : "translateY(12px)",
-              transition: `opacity 0.4s ease ${i * 0.07}s, transform 0.4s ease ${
-                i * 0.07
-              }s`,
-            }}
-          >
-            <div style={{ color: "#9CA3AF", marginBottom: 12, fontSize: 22 }}>
-              {s.icon}
-            </div>
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        {stats.map((s, i) => {
+          const Icon = s.icon;
 
-            <p
+          return (
+            <div
+              key={s.label}
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md"
               style={{
-                margin: "0 0 4px",
-                fontSize: 32,
-                fontWeight: 700,
-                color: "#111827",
-                lineHeight: 1,
+                opacity: visible ? 1 : 0,
+                transform: visible ? "translateY(0)" : "translateY(12px)",
+                transitionDelay: `${i * 70}ms`,
               }}
             >
-              {s.value}
-            </p>
+              <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                  <Icon size={20} />
+                </div>
 
-            <p style={{ margin: 0, fontSize: 13, color: "#6B7280" }}>
-              {s.label}
-            </p>
-          </div>
-        ))}
+                <p className="m-0 text-base font-semibold text-slate-700">
+                  {s.label}
+                </p>
+              </div>
+
+              <p className="m-0 text-3xl font-bold tracking-tight text-slate-950">
+                {s.value}
+              </p>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Recent Jobs */}
       <div>
         <div
           style={{
@@ -448,7 +432,7 @@ export default function Dashboard() {
                 color: "#111827",
               }}
             >
-              Recent Content
+              Recent Contents
             </p>
 
             <button
@@ -470,7 +454,7 @@ export default function Dashboard() {
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {recentReports.length === 0 ? (
               <p style={{ margin: 0, fontSize: 13, color: "#6B7280" }}>
-                No jobs found.
+                No reports found.
               </p>
             ) : (
               recentReports.slice(0, 5).map((report) => (

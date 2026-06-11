@@ -14,7 +14,7 @@ const navItems = [
   { name: "Dashboard", path: "/dashboard", icon: BarChart3 },
   { name: "Matches", path: "/matches", icon: CalendarDays },
   { name: "Leagues", path: "/leagues", icon: Trophy },
-  { name: "Jobs", path: "/jobs", icon: ClipboardList },
+  { name: "Reports", path: "/jobs", icon: ClipboardList },
 ];
 
 const Sidebar = ({ isOpen = true, setIsOpen }) => {
