@@ -2,7 +2,7 @@
 
 Reporta AI is an AI-powered football content generation platform. It combines live football data from Dribl with local Ollama generation on a GPU server to create match reports and league summaries for editorial review.
 
-The current demo deployment uses a React + Vite frontend, a FastAPI backend, SQLite, and Ollama running locally on the GPU server with `qwen2.5:14b`.
+The current demo deployment uses a React + Vite frontend, a FastAPI backend, SQLite, and Ollama running locally on the GPU server with `qwen3:14b`.
 
 ## Features
 
@@ -22,7 +22,7 @@ The current demo deployment uses a React + Vite frontend, a FastAPI backend, SQL
 - Database: SQLite for the current demo/deployment
 - External sports data: Dribl API
 - LLM runtime: Ollama on the GPU server
-- Current model: `qwen2.5:14b`
+- Current model: `qwen3:14b`
 
 ## Folder Structure
 
@@ -58,7 +58,7 @@ DRIBL_TOKEN=your_dribl_token_here
 DATABASE_URL=sqlite:///./app.db
 SECRET_KEY=replace_with_a_long_random_secret
 OLLAMA_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen2.5:14b
+OLLAMA_MODEL=qwen3:14b
 ```
 
 Create `frontend/.env` from `frontend/.env.example`:
@@ -136,7 +136,7 @@ Backend `.env` should point to the local Ollama server:
 
 ```env
 OLLAMA_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen2.5:14b
+OLLAMA_MODEL=qwen3:14b
 ```
 
 ## Current GPU Server URLs
