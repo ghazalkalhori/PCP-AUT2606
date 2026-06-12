@@ -43,9 +43,9 @@ function displayValue(value, fallback = "Not provided") {
 function getMatchStatus(data) {
   return String(
     data?.status ||
-      data?.event_status ||
-      data?.match_data?.eventStatus ||
-      "",
+    data?.event_status ||
+    data?.match_data?.eventStatus ||
+    "",
   ).toLowerCase();
 }
 function getDefaultContentType(data) {
@@ -112,11 +112,11 @@ function MatchReportModal({ isOpen, onClose, data }) {
   );
   const modalLeague = displayValue(
     displayMatch.league ||
-      data.league ||
-      data.league_name ||
-      displayMatch.competition ||
-      data.competition ||
-      data.competition_name,
+    data.league ||
+    data.league_name ||
+    displayMatch.competition ||
+    data.competition ||
+    data.competition_name,
     "League not provided",
   );
   const modalDate = displayValue(
@@ -267,7 +267,7 @@ function MatchReportModal({ isOpen, onClose, data }) {
               </div>
             </div>
             <div className="mb-4">
-              <p className={labelClassName}>Excitement</p>
+              <p className={labelClassName}>Excitement Level</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {DEFAULT_STYLE_OPTIONS.excitement_levels.map((option) => (
                   <OptionButton
