@@ -341,10 +341,10 @@ function GeneratedReport() {
   );
   const leagueName = displayValue(
     reportData?.leagueName ||
-      reportData?.league ||
-      reportData?.competition ||
-      data?.league ||
-      data?.competition,
+    reportData?.league ||
+    reportData?.competition ||
+    data?.league ||
+    data?.competition,
   );
 
   const selectedWritingStyle =
@@ -393,9 +393,9 @@ function GeneratedReport() {
     displayValue(storedScore, "") ||
     (
       reportData?.homeScore !== null &&
-      reportData?.homeScore !== undefined &&
-      reportData?.awayScore !== null &&
-      reportData?.awayScore !== undefined
+        reportData?.homeScore !== undefined &&
+        reportData?.awayScore !== null &&
+        reportData?.awayScore !== undefined
         ? `${reportData.homeScore}-${reportData.awayScore}`
         : ""
     );
@@ -409,40 +409,40 @@ function GeneratedReport() {
   const divisionName = getDivisionLabel(leagueName, competitionName);
   const sourceRows = isLeagueSummary
     ? [
-        ["Competition", competitionName],
-        ...(divisionName
-          ? [["Division/League", divisionName]]
-          : !competitionName && leagueName
-            ? [["League", leagueName]]
-            : []),
-        ["Season", leagueSeason],
-        ["Round", leagueRound],
-        ["Match Count", leagueMatches],
-        ["Status", reportData?.status],
-      ]
+      ["Competition", competitionName],
+      ...(divisionName
+        ? [["Division/League", divisionName]]
+        : !competitionName && leagueName
+          ? [["League", leagueName]]
+          : []),
+      ["Season", leagueSeason],
+      ["Round", leagueRound],
+      ["Match Count", leagueMatches],
+      ["Status", reportData?.status],
+    ]
     : [
-        ["Home Team", homeTeam],
-        ["Away Team", awayTeam],
-        ["Competition", competitionName],
-        ...(divisionName ? [["Division/League", divisionName]] : []),
-        ["Date", matchDateValue],
-        ["Time", matchTime],
-        ["Venue/Ground", venueName],
-        ...(fieldName ? [["Field", fieldName]] : []),
-        ["Status", matchStatus],
-        ...(matchScore ? [["Score", matchScore]] : []),
-      ];
+      ["Home Team", homeTeam],
+      ["Away Team", awayTeam],
+      ["Competition", competitionName],
+      ...(divisionName ? [["Division/League", divisionName]] : []),
+      ["Date", matchDateValue],
+      ["Time", matchTime],
+      ["Venue/Ground", venueName],
+      ...(fieldName ? [["Field", fieldName]] : []),
+      ["Status", matchStatus],
+      ...(matchScore ? [["Score", matchScore]] : []),
+    ];
   const settingsRows = isLeagueSummary
     ? [
-        ["Writing Style", selectedWritingStyle],
-        ["Round", leagueRound],
-      ]
+      ["Writing Style", selectedWritingStyle],
+      ["Round", leagueRound],
+    ]
     : [
-        ["Content Type", selectedContentType],
-        ["Tone", selectedWritingStyle],
-        ["Excitement", reportData?.excitement],
-        ["Comedic Effect", reportData?.comedicEffect || reportData?.comedic_effect],
-      ];
+      ["Content Type", selectedContentType],
+      ["Tone", selectedWritingStyle],
+      ["Excitement Level", reportData?.excitement],
+      ["Comedic Effect", reportData?.comedicEffect || reportData?.comedic_effect],
+    ];
 
   const updateReport = (nextValue) => {
     setEditableReport(nextValue);
